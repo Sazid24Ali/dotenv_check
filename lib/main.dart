@@ -1,10 +1,12 @@
 import 'package:dotenv_check/screens/syllabus_image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
+  TextRecognizer(script: TextRecognitionScript.latin).close();
   runApp(MyApp());
 }
 
