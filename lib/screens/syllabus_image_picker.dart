@@ -1,9 +1,8 @@
-import 'dart:io';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
-
 import '../gemini/gemini_service.dart';
 import 'topic_editor_screen.dart';
 
@@ -15,7 +14,7 @@ class SyllabusImagePicker extends StatefulWidget {
 String cleanJson(String rawResponse) {
   final cleaned = rawResponse.trim();
   if (cleaned.startsWith('```json')) {
-    return cleaned.replaceAll(RegExp(r'^```json|```$'), '').trim();
+    return cleaned.replaceAll(RegExp(r'^```json|```'), '').trim();
   }
   return cleaned;
 }
@@ -48,31 +47,55 @@ class _SyllabusImagePickerState extends State<SyllabusImagePicker> {
 
         if (recognizedText.text.trim().isNotEmpty) {
           _extractedText = recognizedText.text;
-          print("OCR SUCCESS");
-          final result = await GeminiService.parseSyllabusWithGemini(
-            _extractedText,
-          );
-          final cleaned = cleanJson(result);
-          final parsedJson = jsonDecode(cleaned);
 
-          // Add to recent
-          setState(() {
-            recentParsedData.insert(0, {
-              'imagePath': imageFile.path,
-              'parsedJson': parsedJson,
-            });
-          });
-
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => TopicEditorScreen(parsedJson: parsedJson),
+          // Show loading dialog
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => const AlertDialog(
+              content: Row(
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(width: 20),
+                  Expanded(child: Text("Analyzing syllabus...")),
+                ],
+              ),
             ),
-          ).then((_) {
-            setState(() {
-              _selectedImage = null;
+          );
+
+          Map<String, dynamic>? parsedJson;
+
+          try {
+            final result = await GeminiService.parseSyllabusWithGemini(
+              _extractedText,
+            );
+            final cleaned = cleanJson(result);
+            parsedJson = jsonDecode(cleaned);
+
+            Navigator.of(context).pop(); // Dismiss loader
+
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => TopicEditorScreen(parsedJson: parsedJson!),
+              ),
+            ).then((_) {
+              setState(() {
+                _selectedImage = null;
+              });
             });
-          });
+
+            setState(() {
+              recentParsedData.insert(0, {
+                'imagePath': imageFile.path,
+                'parsedJson': parsedJson,
+              });
+            });
+          } catch (e) {
+            Navigator.of(context).pop();
+            print("Gemini Error: $e");
+            _showError("Error analyzing syllabus: $e");
+          }
         } else {
           _showError("No readable text found. Try a clearer image.");
         }
@@ -119,7 +142,6 @@ class _SyllabusImagePickerState extends State<SyllabusImagePicker> {
               onPressed: () => _pickImage(ImageSource.camera),
             ),
             SizedBox(height: 24),
-
             if (recentParsedData.isNotEmpty) ...[
               Divider(),
               Text(
