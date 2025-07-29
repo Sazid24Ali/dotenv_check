@@ -1,13 +1,13 @@
 // lib/screens/study_plan_input_screen.dart
 import 'package:flutter/material.dart';
-import 'dart:math'; // Import for the 'max' function
-import '../models/syllabus_analyzer_models.dart'; // To get syllabus details
-import '../models/study_plan_models.dart'; // To use StudyPlan model
-import '../utils/study_plan_generator.dart'; // To use StudyPlanGenerator
-import 'study_plan_display_screen.dart'; // To navigate to display screen
+import 'dart:math';
+import '../models/syllabus_analyzer_models.dart';
+import '../models/study_plan_models.dart';
+import '../utils/study_plan_generator.dart';
+import 'study_plan_display_screen.dart';
 
 class StudyPlanInputScreen extends StatefulWidget {
-  final SyllabusAnalysisResponse syllabus; // The parsed syllabus data
+  final SyllabusAnalysisResponse syllabus;
 
   const StudyPlanInputScreen({super.key, required this.syllabus});
 
@@ -17,39 +17,130 @@ class StudyPlanInputScreen extends StatefulWidget {
 
 class _StudyPlanInputScreenState extends State<StudyPlanInputScreen> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _hoursPerDayController =
-      TextEditingController(); // Changed to hours per day
-  DateTime _selectedDeadline = DateTime.now().add(
-    const Duration(days: 7),
-  ); // Default to 1 week from now
+  final TextEditingController _studyHoursPerDayController =
+      TextEditingController();
+  final TextEditingController _revisionMinutesPerDayController =
+      TextEditingController();
+  final TextEditingController _dailyStudyStartTimeController =
+      TextEditingController();
+
+  DateTime _selectedDeadline = DateTime.now().add(const Duration(days: 28));
   String _planTitle = 'My Study Plan';
+
+  int _calculatedDaysToDeadline = 0;
+  String _suggestedTotalDailyHoursDisplay = '';
+  TimeOfDay _dailyStudyStartTime = const TimeOfDay(hour: 9, minute: 0);
 
   @override
   void initState() {
     super.initState();
     _planTitle =
         '${widget.syllabus.courseTitle.isNotEmpty ? widget.syllabus.courseTitle : 'General'} Study Plan';
-    // Pre-fill average hours using null-aware operator for totalEstimatedTimeForSyllabus
-    // totalEstimatedTimeForSyllabus is now guaranteed non-null due to defaultValue: 0
-    if (widget.syllabus.totalEstimatedTimeForSyllabus > 0) {
-      int daysToDeadline = max(
-        1,
-        _selectedDeadline.difference(DateTime.now()).inDays,
+
+    _revisionMinutesPerDayController.text = '15';
+    // FIX: Defer setting _dailyStudyStartTimeController.text until context is ready
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _dailyStudyStartTimeController.text = _dailyStudyStartTime.format(
+        context,
       );
-      double avgMinutesPerDay =
-          widget.syllabus.totalEstimatedTimeForSyllabus / daysToDeadline;
-      _hoursPerDayController.text = (avgMinutesPerDay / 60).toStringAsFixed(
-        1,
-      ); // Suggest average hours per day
+      _updateCalculatedDisplayValues(); // Call this after context is ready
+    });
+  }
+
+  int _calculateDaysBetweenInclusive(DateTime startDate, DateTime endDate) {
+    final start = DateTime(startDate.year, startDate.month, startDate.day);
+    final end = DateTime(endDate.year, endDate.month, endDate.day);
+    return end.difference(start).inDays + 1;
+  }
+
+  void _updateCalculatedDisplayValues() {
+    if (widget.syllabus.totalEstimatedTimeForSyllabus > 0) {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final deadlineDateOnly = DateTime(
+        _selectedDeadline.year,
+        _selectedDeadline.month,
+        _selectedDeadline.day,
+      );
+
+      DateTime planningStartDate = (DateTime.now().hour >= 20)
+          ? today.add(const Duration(days: 1))
+          : today;
+
+      int daysAvailableForScheduling = _calculateDaysBetweenInclusive(
+        planningStartDate,
+        deadlineDateOnly,
+      );
+
+      final int revisionMinutesPerDay =
+          int.tryParse(_revisionMinutesPerDayController.text) ?? 0;
+
+      final int totalTopicsMinutes =
+          widget.syllabus.totalEstimatedTimeForSyllabus;
+      final int totalRevisionMinutesOverPeriod =
+          revisionMinutesPerDay * daysAvailableForScheduling;
+
+      final int totalWorkloadMinutes =
+          totalTopicsMinutes + totalRevisionMinutesOverPeriod;
+
+      double averageTotalDailyMinutesNeeded =
+          totalWorkloadMinutes / daysAvailableForScheduling;
+
+      double suggestedMinutesPerDayForTopics =
+          averageTotalDailyMinutesNeeded - revisionMinutesPerDay;
+
+      if (suggestedMinutesPerDayForTopics < 0)
+        suggestedMinutesPerDayForTopics = 0;
+      if (suggestedMinutesPerDayForTopics > 0 &&
+          suggestedMinutesPerDayForTopics < 30) {
+        suggestedMinutesPerDayForTopics = 30;
+      }
+
+      // Ensure context is available before formatting TimeOfDay, especially for TimeOfDay.format
+      if (mounted) {
+        // Check if the widget is still mounted before using context
+        setState(() {
+          _calculatedDaysToDeadline = daysAvailableForScheduling;
+          _suggestedTotalDailyHoursDisplay =
+              ((suggestedMinutesPerDayForTopics + revisionMinutesPerDay) / 60)
+                  .toStringAsFixed(1);
+          _studyHoursPerDayController.text =
+              (suggestedMinutesPerDayForTopics / 60).toStringAsFixed(1);
+        });
+      }
     } else {
-      _hoursPerDayController.text =
-          '1.0'; // Default to 1 hour if total syllabus time is 0
+      if (mounted) {
+        setState(() {
+          _calculatedDaysToDeadline = _calculateDaysBetweenInclusive(
+            (DateTime.now().hour >= 20)
+                ? DateTime(
+                    DateTime.now().year,
+                    DateTime.now().month,
+                    DateTime.now().day,
+                  ).add(const Duration(days: 1))
+                : DateTime(
+                    DateTime.now().year,
+                    DateTime.now().month,
+                    DateTime.now().day,
+                  ),
+            DateTime(
+              _selectedDeadline.year,
+              _selectedDeadline.month,
+              _selectedDeadline.day,
+            ),
+          );
+          _suggestedTotalDailyHoursDisplay = '1.0';
+          _studyHoursPerDayController.text = '1.0';
+        });
+      }
     }
   }
 
   @override
   void dispose() {
-    _hoursPerDayController.dispose();
+    _studyHoursPerDayController.dispose();
+    _revisionMinutesPerDayController.dispose();
+    _dailyStudyStartTimeController.dispose();
     super.dispose();
   }
 
@@ -58,79 +149,101 @@ class _StudyPlanInputScreenState extends State<StudyPlanInputScreen> {
       context: context,
       initialDate: _selectedDeadline,
       firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(
-        const Duration(days: 365 * 2),
-      ), // 2 years from now
+      lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
     );
     if (picked != null && picked != _selectedDeadline) {
       setState(() {
         _selectedDeadline = picked;
-        // Recalculate suggested hours per day if deadline changes
-        if (widget.syllabus.totalEstimatedTimeForSyllabus > 0) {
-          int daysToDeadline = max(
-            1,
-            _selectedDeadline.difference(DateTime.now()).inDays,
-          );
-          double avgMinutesPerDay =
-              widget.syllabus.totalEstimatedTimeForSyllabus / daysToDeadline;
-          _hoursPerDayController.text = (avgMinutesPerDay / 60).toStringAsFixed(
-            1,
-          );
-        } else {
-          _hoursPerDayController.text = '1.0';
-        }
+        _updateCalculatedDisplayValues();
+      });
+    }
+  }
+
+  Future<void> _selectDailyStudyStartTime(BuildContext context) async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: _dailyStudyStartTime,
+    );
+    if (picked != null && picked != _dailyStudyStartTime) {
+      setState(() {
+        _dailyStudyStartTime = picked;
+        _dailyStudyStartTimeController.text = picked.format(context);
+        // No need to recalculate overall values just because start time changes
       });
     }
   }
 
   void _generateStudyPlan() {
     if (_formKey.currentState!.validate()) {
-      final double hoursPerDay = double.parse(_hoursPerDayController.text);
-      final int minutesPerDay = (hoursPerDay * 60).round();
-
-      if (minutesPerDay <= 0) {
-        _showErrorDialog(
-          'Invalid Time',
-          'Please allocate a positive amount of study time per day.',
-        );
-        return;
-      }
-
-      final int daysToDeadline = max(
-        1, // Ensure at least 1 day for calculations, even if deadline is today or past
-        _selectedDeadline.difference(DateTime.now()).inDays,
+      final double studyHoursPerDay = double.parse(
+        _studyHoursPerDayController.text,
       );
-      final int totalAllocatedTimeMinutes = minutesPerDay * daysToDeadline;
+      final int minutesPerDayForTopics = (studyHoursPerDay * 60).round();
 
-      if (totalAllocatedTimeMinutes <= 0) {
+      final int revisionMinutesPerDay =
+          int.tryParse(_revisionMinutesPerDayController.text) ?? 0;
+
+      if (minutesPerDayForTopics <= 0 && revisionMinutesPerDay <= 0) {
         _showErrorDialog(
-          'Invalid Plan Duration',
-          'Total study time for the plan is zero. Adjust hours per day or deadline.',
+          'Invalid Daily Time',
+          'Please allocate a positive amount of study time or revision time per day.',
         );
         return;
       }
 
-      // Generate the plan using the Knapsack logic
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final deadlineDateOnly = DateTime(
+        _selectedDeadline.year,
+        _selectedDeadline.month,
+        _selectedDeadline.day,
+      );
+
+      DateTime planningStartDate = (DateTime.now().hour >= 20)
+          ? today.add(const Duration(days: 1))
+          : today;
+
+      int daysForCalculatedTotal = _calculateDaysBetweenInclusive(
+        planningStartDate,
+        deadlineDateOnly,
+      );
+      final int totalAllocatedTimeMinutesForPlan =
+          (minutesPerDayForTopics + revisionMinutesPerDay) *
+          daysForCalculatedTotal;
+
       final StudyPlan generatedPlan = StudyPlanGenerator.generatePlan(
         syllabus: widget.syllabus,
         planTitle: _planTitle,
-        totalAllocatedTimeMinutes:
-            totalAllocatedTimeMinutes, // Use calculated total
+        totalAllocatedTimeMinutesUserCommitment:
+            totalAllocatedTimeMinutesForPlan,
         deadline: _selectedDeadline,
-        minutesPerDay: minutesPerDay, // Pass minutes per day for distribution
+        minutesPerDayForTopics: minutesPerDayForTopics,
+        revisionMinutesPerDay: revisionMinutesPerDay,
+        dailyStudyStartTime: _dailyStudyStartTime,
       );
 
-      if (generatedPlan.sessions.isEmpty) {
+      if (generatedPlan.sessions.isEmpty &&
+          generatedPlan.uncoveredTopics.isNotEmpty) {
         _showErrorDialog(
-          'No Plan Generated',
-          'No study sessions could be generated. This might happen if '
-              'the total allocated time (${totalAllocatedTimeMinutes} mins) is too low, or if all topics have 0 estimated time after filtering. '
-              'Please try increasing the hours per day, extending the deadline, or ensure your syllabus topics have estimated times.',
+          'Plan Not Feasible',
+          'Your daily study time is too low to schedule any sessions, or all topics have 0 estimated time. '
+              'Please increase your daily study hours/minutes or adjust topic times.',
         );
         return;
       }
 
-      // Navigate to the display screen
+      bool allTopicsCovered = generatedPlan.uncoveredTopics.isEmpty;
+      if (!allTopicsCovered) {
+        _showErrorDialog(
+          'Plan Incomplete by Deadline',
+          'Your current daily study commitment for topics (${_studyHoursPerDayController.text} hours) '
+              'plus revision (${_revisionMinutesPerDayController.text} mins) '
+              'is insufficient to cover ALL syllabus material by your deadline (${_selectedDeadline.toLocal().toString().substring(0, 10)}). '
+              'The plan will show topics covered up to the deadline. Consider increasing daily study time or extending the deadline. '
+              'Topics not covered: ${generatedPlan.uncoveredTopics.map((t) => t.topic).join(', ')}',
+        );
+      }
+
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -173,16 +286,28 @@ class _StudyPlanInputScreenState extends State<StudyPlanInputScreen> {
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
               Text(
-                'Total Syllabus Estimated Time: ${widget.syllabus.totalEstimatedTimeForSyllabus} minutes', // Safely display
+                'Total Syllabus Estimated Time: ${widget.syllabus.totalEstimatedTimeForSyllabus} minutes',
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
               const SizedBox(height: 20),
+              Text(
+                'Days available until deadline: $_calculatedDaysToDeadline days',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Suggested Total Daily Study: $_suggestedTotalDailyHoursDisplay hours',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 20),
               TextFormField(
-                controller: _hoursPerDayController,
+                controller: _studyHoursPerDayController,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
-                  labelText: 'Study Hours per Day', // Changed label
-                  hintText: 'e.g., 2.5 (for 2 hours 30 mins)', // Changed hint
+                  labelText: 'Your Daily Topics Study (Hours)',
+                  hintText: 'e.g., 2.5 (for 2 hours 30 mins)',
                   border: OutlineInputBorder(),
                 ),
                 validator: (value) {
@@ -192,11 +317,56 @@ class _StudyPlanInputScreenState extends State<StudyPlanInputScreen> {
                   if (double.tryParse(value) == null) {
                     return 'Please enter a valid number (e.g., 2.5).';
                   }
-                  if (double.parse(value) <= 0) {
-                    return 'Hours must be positive.';
+                  if (double.parse(value) < 0) {
+                    return 'Hours cannot be negative.';
+                  }
+                  final int currentRevisionMins =
+                      int.tryParse(_revisionMinutesPerDayController.text) ?? 0;
+                  if (double.parse(value) == 0 && currentRevisionMins == 0) {
+                    return 'Total daily study time cannot be zero.';
                   }
                   return null;
                 },
+                onChanged: (value) {
+                  // No auto-suggestion update on this field change.
+                },
+              ),
+              const SizedBox(height: 20),
+              TextFormField(
+                controller: _revisionMinutesPerDayController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Your Daily Revision (Minutes)',
+                  hintText: 'e.g., 15 (for 15 minutes)',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter revision minutes per day.';
+                  }
+                  if (int.tryParse(value) == null) {
+                    return 'Please enter a valid integer (e.g., 15).';
+                  }
+                  if (int.parse(value) < 0) {
+                    return 'Minutes cannot be negative.';
+                  }
+                  final double currentTopicHours =
+                      double.tryParse(_studyHoursPerDayController.text) ?? 0;
+                  if (currentTopicHours == 0 && int.parse(value) == 0) {
+                    return 'Total daily study time cannot be zero.';
+                  }
+                  return null;
+                },
+                onChanged: (value) {
+                  _updateCalculatedDisplayValues(); // Recalculate suggestion when revision minutes are changed
+                },
+              ),
+              const SizedBox(height: 20),
+              ListTile(
+                title: const Text('Daily Study Start Time'),
+                subtitle: Text(_dailyStudyStartTime.format(context)),
+                trailing: const Icon(Icons.access_time),
+                onTap: () => _selectDailyStudyStartTime(context),
               ),
               const SizedBox(height: 20),
               ListTile(

@@ -1,22 +1,23 @@
 // lib/screens/topic_editor_screen.dart
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-// Removed unused import: import 'dart:convert';
+import 'package:permission_handler/permission_handler.dart';
 import '../models/syllabus_analyzer_models.dart';
-import '../utils/syllabus_calculator.dart'; // Import the calculator utility
-import 'study_plan_input_screen.dart'; // NEW: Import for navigation
+import '../utils/syllabus_calculator.dart';
+import '../utils/pdf_generator.dart';
+import 'study_plan_input_screen.dart';
+import 'pdf_viewer_screen.dart'; // Import the PDF viewer screen
 
 class TopicEditorScreen extends StatefulWidget {
   final SyllabusAnalysisResponse parsedSyllabus;
   final String scanTitle;
-  // Callback to update the parent list (SyllabusImagePicker's recent scans)
   final Function(SyllabusAnalysisResponse updatedSyllabus)? onSyllabusUpdated;
 
   const TopicEditorScreen({
     super.key,
     required this.parsedSyllabus,
     this.scanTitle = 'Analyzed Syllabus',
-    this.onSyllabusUpdated, // Accept the callback
+    this.onSyllabusUpdated,
   });
 
   @override
@@ -30,8 +31,7 @@ class _TopicEditorScreenState extends State<TopicEditorScreen> {
   @override
   void initState() {
     super.initState();
-    _currentSyllabus = widget.parsedSyllabus; // Initialize with passed data
-    // Calculate initial totals using the external utility (safe if done in service, but good safeguard)
+    _currentSyllabus = widget.parsedSyllabus;
     SyllabusCalculator.calculateAllTotals(_currentSyllabus);
     _loadShowInHoursSetting();
   }
@@ -48,9 +48,7 @@ class _TopicEditorScreenState extends State<TopicEditorScreen> {
     await prefs.setBool('showInHours', value);
   }
 
-  // This method now triggers the callback to update the parent list
   void _saveChanges() {
-    // Recalculate all totals one last time before saving via callback
     SyllabusCalculator.calculateAllTotals(_currentSyllabus);
     if (widget.onSyllabusUpdated != null) {
       widget.onSyllabusUpdated!(_currentSyllabus);
@@ -65,7 +63,7 @@ class _TopicEditorScreenState extends State<TopicEditorScreen> {
         const SnackBar(content: Text('Could not save changes persistently.')),
       );
     }
-    setState(() {}); // Refresh UI after saving (e.g., if totals changed)
+    setState(() {});
   }
 
   String formatTime(int minutes) {
@@ -76,6 +74,57 @@ class _TopicEditorScreenState extends State<TopicEditorScreen> {
     if (h > 0 && m > 0) return "${h}h ${m}m";
     if (h > 0) return "${h}h";
     return "${m}m";
+  }
+
+  Future<void> _generateAndDownloadPdf() async {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Generating PDF...'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+
+    try {
+      var status = await Permission.storage.status;
+      if (!status.isGranted) {
+        status = await Permission.storage.request();
+      }
+
+      if (status.isGranted) {
+        final String pdfFilePath = await PdfGenerator.generateSyllabusPdf(
+          _currentSyllabus,
+        );
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) =>
+                PdfViewerScreen(pdfPath: pdfFilePath, title: widget.scanTitle),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Storage permission denied. Cannot save PDF. Please enable it in app settings.',
+            ),
+            duration: Duration(seconds: 5),
+          ),
+        );
+        if (status.isDenied) {
+          await openAppSettings();
+        }
+      }
+    } catch (e, stacktrace) {
+      print('Error generating PDF: $e');
+      print('Stacktrace: $stacktrace');
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to generate PDF: ${e.toString()}')),
+      );
+    }
   }
 
   void _editName(dynamic node, String label) async {
@@ -107,33 +156,30 @@ class _TopicEditorScreenState extends State<TopicEditorScreen> {
     if (newName != null && newName.isNotEmpty) {
       setState(() {
         if (node is Unit) {
-          node.unitName = newName; // Direct mutation
+          node.unitName = newName;
         } else if (node is Topic) {
-          node.topic = newName; // Direct mutation
+          node.topic = newName;
         }
-        // Recalculate totals after name change (just in case derived values exist)
         SyllabusCalculator.calculateAllTotals(_currentSyllabus);
       });
-      _saveChanges(); // Save changes immediately after edit
+      _saveChanges();
     }
   }
 
   void _editEstimatedTime(Topic topic) async {
     int currentEstimatedTime = topic.estimatedTime;
     final newTime = await showDialog<int>(
-      // Dialog will return an int
       context: context,
       builder: (context) {
         return AlertDialog(
           title: const Text('Edit Estimated Time (minutes)'),
           content: StatefulBuilder(
-            // Use StatefulBuilder for internal state changes
             builder: (context, setState) {
               return Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    '${currentEstimatedTime} minutes',
+                    '$currentEstimatedTime minutes',
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                   Row(
@@ -143,8 +189,9 @@ class _TopicEditorScreenState extends State<TopicEditorScreen> {
                         icon: const Icon(Icons.remove_circle),
                         onPressed: () {
                           setState(() {
-                            if (currentEstimatedTime > 0)
-                              currentEstimatedTime -= 5; // Decrement by 5 mins
+                            if (currentEstimatedTime > 0) {
+                              currentEstimatedTime -= 5;
+                            }
                           });
                         },
                       ),
@@ -161,14 +208,12 @@ class _TopicEditorScreenState extends State<TopicEditorScreen> {
                                         .toString()
                                         .length,
                                   ),
-                                ), // Keep cursor at end
+                                ),
                           keyboardType: TextInputType.number,
                           textAlign: TextAlign.center,
                           onChanged: (value) {
                             setState(() {
-                              currentEstimatedTime =
-                                  int.tryParse(value) ??
-                                  0; // Default to 0 if invalid
+                              currentEstimatedTime = int.tryParse(value) ?? 0;
                             });
                           },
                           decoration: const InputDecoration(
@@ -181,16 +226,14 @@ class _TopicEditorScreenState extends State<TopicEditorScreen> {
                         icon: const Icon(Icons.add_circle),
                         onPressed: () {
                           setState(() {
-                            currentEstimatedTime += 5; // Increment by 5 mins
+                            currentEstimatedTime += 5;
                           });
                         },
                       ),
                     ],
                   ),
                   const SizedBox(height: 10),
-                  Text(
-                    'Set in: ${formatTime(currentEstimatedTime)}',
-                  ), // Show formatted time
+                  Text('Set in: ${formatTime(currentEstimatedTime)}'),
                 ],
               );
             },
@@ -201,10 +244,7 @@ class _TopicEditorScreenState extends State<TopicEditorScreen> {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: () => Navigator.pop(
-                context,
-                currentEstimatedTime,
-              ), // Return the integer
+              onPressed: () => Navigator.pop(context, currentEstimatedTime),
               child: const Text('Save'),
             ),
           ],
@@ -327,16 +367,18 @@ class _TopicEditorScreenState extends State<TopicEditorScreen> {
             tooltip: 'Toggle time display (mins/hours)',
           ),
           IconButton(
+            icon: const Icon(Icons.picture_as_pdf), // Changed icon for PDF
+            onPressed: _generateAndDownloadPdf,
+            tooltip: 'View Syllabus PDF', // Changed tooltip
+          ),
+          IconButton(
             icon: const Icon(Icons.save),
             onPressed: _saveChanges,
             tooltip: 'Save current changes',
           ),
         ],
       ),
-      body:
-          _currentSyllabus
-              .units
-              .isEmpty // Check if units list is empty
+      body: _currentSyllabus.units.isEmpty
           ? const Center(
               child: Text(
                 'No syllabus units found. Try re-analyzing or adding manually.',
@@ -402,7 +444,7 @@ class _TopicEditorScreenState extends State<TopicEditorScreen> {
         children: [
           ...unit.topics
               .map((topic) => _buildTopicEditor(topic, unit.topics, 0))
-              .toList(),
+              ,
           Align(
             alignment: Alignment.center,
             child: TextButton.icon(
@@ -445,15 +487,15 @@ class _TopicEditorScreenState extends State<TopicEditorScreen> {
               Text(
                 'Importance: ${topic.importance}, Difficulty: ${topic.difficulty}',
               ),
-              if (topic.timeReasoning.isNotEmpty) // Use .isNotEmpty for String
+              if (topic.timeReasoning.isNotEmpty)
                 Text(
                   'Reasoning: ${topic.timeReasoning}',
-                  style: const TextStyle(
+                  style: TextStyle(
+                    fontSize: 10,
                     fontStyle: FontStyle.italic,
-                    fontSize: 11,
-                  ),
+                  ), // FIX: Corrected to use Flutter's TextStyle and FontStyle
                 ),
-              if (topic.resources.isNotEmpty) // Use .isNotEmpty for List
+              if (topic.resources.isNotEmpty)
                 Text(
                   'Resources: ${topic.resources.join(', ')}',
                   style: const TextStyle(fontSize: 12),
@@ -486,13 +528,12 @@ class _TopicEditorScreenState extends State<TopicEditorScreen> {
                 ],
               ),
             ),
-            // Render subtopics recursively
             ...topic.subtopics
                 .map(
                   (subtopic) =>
                       _buildTopicEditor(subtopic, topic.subtopics, level + 1),
                 )
-                .toList(),
+                ,
             Align(
               alignment: Alignment.center,
               child: TextButton.icon(

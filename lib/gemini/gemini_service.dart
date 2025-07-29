@@ -39,6 +39,7 @@ class GeminiService {
     final endpoint =
         'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey';
 
+    // MODIFIED PROMPT BELOW
     final prompt =
         """
 You are an expert academic syllabus analyzer AI.
@@ -103,9 +104,13 @@ Extract the following information and provide it as a **strictly valid JSON** st
     -   **For EVERY** estimated_time that you infer (i.e., not explicitly stated in the syllabus), you **MUST** include a clear `"time_reasoning"` explaining your logic (e.g., "Estimated 45 minutes based on topic complexity for a standard university course. No explicit time found.").
     -   The `total_estimated_time` for each unit and `total_estimated_time_for_syllabus` should be accurate sums of all child topics/subtopics. (This will be calculated client-side, but it's a good reminder for Gemini).
 
-3.  **Default Values:**
-    -   For 'importance' and 'difficulty', use a default of 3 (on a scale of 1-5) if not explicitly specified.
-    -   If a field is not found or applicable, use an empty string (""), or 0 (for numbers like `year` if genuinely not found), but do not omit the key if it's part of the structure.
+3.  **Realistic Inference for Importance/Difficulty (Revised Directive for balanced distribution):**
+    - For 'importance' and 'difficulty', **infer the most appropriate integer value (1-5) based on the topic's content, complexity, and common academic understanding of typical course material.**
+    - **Crucially, strive for a realistic distribution across the 1-5 scale.** Not all topics are equally important or difficult.
+        - Use **1-2** for foundational, introductory, or simpler review topics.
+        - Use **3** for standard, average complexity topics.
+        - Use **4-5** for core concepts, challenging topics, or highly critical areas.
+    - The goal is to provide varied values that help a student prioritize effectively for study. **Only use a default of 3 if absolutely no reasonable inference can be made from the text.**
 
 4.  **Output Format:**
     -   Your response MUST be a **plain JSON string**, without any markdown code blocks (e.g., no ```json ```).
@@ -114,10 +119,16 @@ Extract the following information and provide it as a **strictly valid JSON** st
     -   For list fields like `learning_objectives`, `readings`, `assignments`, `web_search_keywords`, `suggested_resources`, `required_materials`, `important_dates`, **ONLY include them if they have actual content**. If they are empty, OMIT the key entirely instead of including an empty array (`[]`). This will help keep JSON size manageable.
     -   Use consistent field names **exactly** as described in the JSON structure above.
 
+5.  **Course Title and Code Extraction (Revised Directive):**
+    - **CRITICAL**: The `course_title` and `course_code` are usually found at the **very beginning or top section** of the syllabus. Look for explicit labels like "Course Title:", "Subject Name:", "Course Name:", "Title:", "Course Code:", "Subject Code:", or any prominent text that clearly identifies the course.
+    - For `course_code`, look for concise alphanumeric identifiers, often containing dashes, spaces, or numbers (e.g., "CS101", "MATH-203", "AI-F2024", "BIO 301").
+    - **Prioritize extracting these fields accurately. If a clear title or code is not explicitly labeled, infer the most prominent and relevant text at the top of the document.**
+
 **OCR Syllabus Text to Analyze:**
 $syllabusText
 
 """;
+    // END MODIFIED PROMPT
 
     final body = {
       "contents": [
@@ -223,19 +234,14 @@ $syllabusText
 
           // --- SAVE RAW RESPONSE TO FILE FOR DEBUGGING ---
           try {
-            // Check for storage permission. On modern Android/iOS, writing to getApplicationDocumentsDirectory()
-            // often doesn't require explicit storage permission pop-ups, but it's good to be cautious.
-            var status = await Permission.storage
-                .request(); // This might be redundant for app-private files
+            var status = await Permission.storage.request();
             if (status.isGranted ||
-                Platform.isAndroid &&
-                    (await Permission.storage.status).isGranted ||
+                (Platform.isAndroid &&
+                    (await Permission.storage.status).isGranted) ||
                 Platform.isIOS) {
               final directory = await getApplicationDocumentsDirectory();
               final file = File('${directory.path}/gemini_raw_response.json');
-              await file.writeAsString(
-                fullResponseBody,
-              ); // Use fullResponseBody here
+              await file.writeAsString(fullResponseBody);
               print('DEBUG: Gemini raw response saved to: ${file.path}');
               print('DEBUG: Please inspect this file to see the full JSON.');
             } else {

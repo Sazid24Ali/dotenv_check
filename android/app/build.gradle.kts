@@ -1,53 +1,59 @@
 plugins {
     id("com.android.application")
-    id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
-    id("dev.flutter.flutter-gradle-plugin")
-    
     id("org.jetbrains.kotlin.android")
-
+    id("dev.flutter.flutter-gradle-plugin")
 }
 
 android {
     namespace = "com.example.dotenv_check"
     compileSdk = flutter.compileSdkVersion
     // ndkVersion = flutter.ndkVersion
-    ndkVersion = "29.0.13599879"
-
+    ndkVersion = "27.0.12077973"
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        // Essential for desugaring: Set source and target compatibility to Java 1.8
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+        // Added for robust desugaring: enable desugaring for core libraries
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
+        jvmTarget = "1.8"
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.dotenv_check"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // Required for core library desugaring and apps with many dependencies
+        multiDexEnabled = true
     }
 
     buildTypes {
-    release {
-        isMinifyEnabled = true              // ✅ Enable R8 shrinking
-        isShrinkResources = true            // ✅ Remove unused resources
-        signingConfig = signingConfigs.getByName("debug")  // ✅ Keep this for now
-        proguardFiles(
-            getDefaultProguardFile("proguard-android-optimize.txt"),
-            file("proguard-rules.pro")      // ✅ Our custom rules file
-        )
+        release {
+            isMinifyEnabled = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+            // If you had a signing config here, it would go below.
+            // Example: signingConfig = signingConfigs.getByName("release")
+        }
+        debug {
+            // Debug specific configurations if any
+        }
     }
-}
-
 }
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Dependency for core library desugaring
+    // Using a recent stable version.
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 }

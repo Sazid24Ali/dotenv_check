@@ -70,19 +70,21 @@ Map<String, dynamic> _$SyllabusAnalysisResponseToJson(
 };
 
 Unit _$UnitFromJson(Map<String, dynamic> json) => Unit(
-  unitName: json['unit_name'] as String? ?? '',
+  unitName: json['topic'] as String? ?? '',
+  weekNumber: (json['week_number'] as num?)?.toInt(),
   totalEstimatedTime: (json['total_estimated_time'] as num?)?.toInt() ?? 0,
   topics:
-      (json['topics'] as List<dynamic>?)
+      (json['subtopics'] as List<dynamic>?)
           ?.map((e) => Topic.fromJson(e as Map<String, dynamic>))
           .toList() ??
       [],
 );
 
 Map<String, dynamic> _$UnitToJson(Unit instance) => <String, dynamic>{
-  'unit_name': instance.unitName,
+  'topic': instance.unitName,
+  'week_number': instance.weekNumber,
   'total_estimated_time': instance.totalEstimatedTime,
-  'topics': instance.topics.map((e) => e.toJson()).toList(),
+  'subtopics': instance.topics.map((e) => e.toJson()).toList(),
 };
 
 Topic _$TopicFromJson(Map<String, dynamic> json) => Topic(
