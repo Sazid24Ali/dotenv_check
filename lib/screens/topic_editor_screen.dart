@@ -5,7 +5,7 @@ import 'package:permission_handler/permission_handler.dart';
 import '../models/syllabus_analyzer_models.dart';
 import '../utils/syllabus_calculator.dart';
 import '../utils/pdf_generator.dart';
-import 'study_plan_input_screen.dart';
+import 'study_plan_input_screen.dart'; // FIX: Ensure this import is present and correct
 import 'pdf_viewer_screen.dart'; // Import the PDF viewer screen
 
 class TopicEditorScreen extends StatefulWidget {
@@ -179,7 +179,7 @@ class _TopicEditorScreenState extends State<TopicEditorScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    '$currentEstimatedTime minutes',
+                    '${currentEstimatedTime} minutes',
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                   Row(
@@ -189,9 +189,8 @@ class _TopicEditorScreenState extends State<TopicEditorScreen> {
                         icon: const Icon(Icons.remove_circle),
                         onPressed: () {
                           setState(() {
-                            if (currentEstimatedTime > 0) {
+                            if (currentEstimatedTime > 0)
                               currentEstimatedTime -= 5;
-                            }
                           });
                         },
                       ),
@@ -367,9 +366,9 @@ class _TopicEditorScreenState extends State<TopicEditorScreen> {
             tooltip: 'Toggle time display (mins/hours)',
           ),
           IconButton(
-            icon: const Icon(Icons.picture_as_pdf), // Changed icon for PDF
+            icon: const Icon(Icons.picture_as_pdf),
             onPressed: _generateAndDownloadPdf,
-            tooltip: 'View Syllabus PDF', // Changed tooltip
+            tooltip: 'View Syllabus PDF',
           ),
           IconButton(
             icon: const Icon(Icons.save),
@@ -404,6 +403,7 @@ class _TopicEditorScreenState extends State<TopicEditorScreen> {
                         context,
                         MaterialPageRoute(
                           builder: (context) =>
+                              // FIX: Explicitly instantiate StudyPlanInputScreen as a Widget
                               StudyPlanInputScreen(syllabus: _currentSyllabus),
                         ),
                       );
@@ -444,7 +444,7 @@ class _TopicEditorScreenState extends State<TopicEditorScreen> {
         children: [
           ...unit.topics
               .map((topic) => _buildTopicEditor(topic, unit.topics, 0))
-              ,
+              .toList(),
           Align(
             alignment: Alignment.center,
             child: TextButton.icon(
@@ -490,10 +490,7 @@ class _TopicEditorScreenState extends State<TopicEditorScreen> {
               if (topic.timeReasoning.isNotEmpty)
                 Text(
                   'Reasoning: ${topic.timeReasoning}',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontStyle: FontStyle.italic,
-                  ), // FIX: Corrected to use Flutter's TextStyle and FontStyle
+                  style: TextStyle(fontSize: 10, fontStyle: FontStyle.italic),
                 ),
               if (topic.resources.isNotEmpty)
                 Text(
@@ -533,7 +530,7 @@ class _TopicEditorScreenState extends State<TopicEditorScreen> {
                   (subtopic) =>
                       _buildTopicEditor(subtopic, topic.subtopics, level + 1),
                 )
-                ,
+                .toList(),
             Align(
               alignment: Alignment.center,
               child: TextButton.icon(

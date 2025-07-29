@@ -6,6 +6,15 @@ import '../models/study_plan_models.dart';
 import '../utils/study_plan_generator.dart';
 import 'study_plan_display_screen.dart';
 
+// FIX: Corrected imports for flutter_local_notifications and timezone
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+// REMOVED: import 'package:flutter_local_notifications_android/flutter_local_notifications_android.dart'; // THIS LINE IS REMOVED
+
+// Import main.dart to access the globally declared flutterLocalNotificationsPlugin instance
+import 'package:dotenv_check/main.dart';
+// Import timezone for TZDateTime and local (using the 'tz' alias from main.dart's setup).
+import 'package:timezone/timezone.dart' as tz;
+
 class StudyPlanInputScreen extends StatefulWidget {
   final SyllabusAnalysisResponse syllabus;
 
@@ -23,8 +32,11 @@ class _StudyPlanInputScreenState extends State<StudyPlanInputScreen> {
       TextEditingController();
   final TextEditingController _dailyStudyStartTimeController =
       TextEditingController();
+  final TextEditingController _breakMinutesController = TextEditingController();
 
-  DateTime _selectedDeadline = DateTime.now().add(const Duration(days: 28));
+  DateTime _selectedDeadline = DateTime.now().add(
+    const Duration(days: 28),
+  ); // Default to 4 weeks (28 days) from now
   String _planTitle = 'My Study Plan';
 
   int _calculatedDaysToDeadline = 0;
@@ -35,15 +47,19 @@ class _StudyPlanInputScreenState extends State<StudyPlanInputScreen> {
   void initState() {
     super.initState();
     _planTitle =
-        '${widget.syllabus.courseTitle.isNotEmpty ? widget.syllabus.courseTitle : 'General'} Study Plan';
+        '${widget.syllabus.courseTitle.isNotEmpty ? widget.syllabus.courseTitle : 'Unnamed Course'} Study Plan';
 
-    _revisionMinutesPerDayController.text = '15';
-    // FIX: Defer setting _dailyStudyStartTimeController.text until context is ready
+    _revisionMinutesPerDayController.text =
+        '15'; // Default 15 minutes of revision per day
+    _breakMinutesController.text = '5'; // Default 5 minutes break
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _dailyStudyStartTimeController.text = _dailyStudyStartTime.format(
-        context,
-      );
-      _updateCalculatedDisplayValues(); // Call this after context is ready
+      if (mounted) {
+        // Ensure widget is still in tree before using context
+        _dailyStudyStartTimeController.text = _dailyStudyStartTime.format(
+          context,
+        );
+        _updateCalculatedDisplayValues();
+      }
     });
   }
 
@@ -74,6 +90,7 @@ class _StudyPlanInputScreenState extends State<StudyPlanInputScreen> {
 
       final int revisionMinutesPerDay =
           int.tryParse(_revisionMinutesPerDayController.text) ?? 0;
+      final int breakMinutes = int.tryParse(_breakMinutesController.text) ?? 0;
 
       final int totalTopicsMinutes =
           widget.syllabus.totalEstimatedTimeForSyllabus;
@@ -96,9 +113,7 @@ class _StudyPlanInputScreenState extends State<StudyPlanInputScreen> {
         suggestedMinutesPerDayForTopics = 30;
       }
 
-      // Ensure context is available before formatting TimeOfDay, especially for TimeOfDay.format
       if (mounted) {
-        // Check if the widget is still mounted before using context
         setState(() {
           _calculatedDaysToDeadline = daysAvailableForScheduling;
           _suggestedTotalDailyHoursDisplay =
@@ -141,6 +156,7 @@ class _StudyPlanInputScreenState extends State<StudyPlanInputScreen> {
     _studyHoursPerDayController.dispose();
     _revisionMinutesPerDayController.dispose();
     _dailyStudyStartTimeController.dispose();
+    _breakMinutesController.dispose();
     super.dispose();
   }
 
@@ -168,13 +184,34 @@ class _StudyPlanInputScreenState extends State<StudyPlanInputScreen> {
       setState(() {
         _dailyStudyStartTime = picked;
         _dailyStudyStartTimeController.text = picked.format(context);
-        // No need to recalculate overall values just because start time changes
       });
     }
   }
 
-  void _generateStudyPlan() {
+  void _generateStudyPlan() async {
     if (_formKey.currentState!.validate()) {
+      // Request notification permissions before generating plan (Android only now)
+      if (Theme.of(context).platform == TargetPlatform.android) {
+        // AndroidFlutterLocalNotificationsPlugin should be directly accessible from flutter_local_notifications.dart
+        final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
+            flutterLocalNotificationsPlugin
+                .resolvePlatformSpecificImplementation<
+                  AndroidFlutterLocalNotificationsPlugin
+                >();
+        if (androidImplementation != null) {
+          bool? granted = await androidImplementation
+              .requestNotificationsPermission();
+          if (granted != true) {
+            _showErrorDialog(
+              'Notification Permission Denied',
+              'Cannot schedule study session reminders. Please enable notification permissions for the app in settings.',
+            );
+            return;
+          }
+        }
+      }
+      // Removed iOS/macOS specific permission request block.
+
       final double studyHoursPerDay = double.parse(
         _studyHoursPerDayController.text,
       );
@@ -182,11 +219,14 @@ class _StudyPlanInputScreenState extends State<StudyPlanInputScreen> {
 
       final int revisionMinutesPerDay =
           int.tryParse(_revisionMinutesPerDayController.text) ?? 0;
+      final int breakMinutes = int.tryParse(_breakMinutesController.text) ?? 0;
 
-      if (minutesPerDayForTopics <= 0 && revisionMinutesPerDay <= 0) {
+      if (minutesPerDayForTopics <= 0 &&
+          revisionMinutesPerDay <= 0 &&
+          breakMinutes <= 0) {
         _showErrorDialog(
           'Invalid Daily Time',
-          'Please allocate a positive amount of study time or revision time per day.',
+          'Please allocate a positive amount of study time or revision time or break time per day.',
         );
         return;
       }
@@ -212,15 +252,20 @@ class _StudyPlanInputScreenState extends State<StudyPlanInputScreen> {
           daysForCalculatedTotal;
 
       final StudyPlan generatedPlan = StudyPlanGenerator.generatePlan(
-        syllabus: widget.syllabus,
+        syllabus: widget.syllabus, // Pass syllabus
         planTitle: _planTitle,
         totalAllocatedTimeMinutesUserCommitment:
             totalAllocatedTimeMinutesForPlan,
         deadline: _selectedDeadline,
         minutesPerDayForTopics: minutesPerDayForTopics,
-        revisionMinutesPerDay: revisionMinutesPerDay,
+        revisionMinutesPerDay:
+            revisionMinutesPerDay, // FIX: Correct parameter name
         dailyStudyStartTime: _dailyStudyStartTime,
+        breakMinutes: breakMinutes,
       );
+
+      // Schedule notifications for each session (COMMENTED OUT FOR NOW, AS PER MAIN.DART)
+      // _scheduleNotifications(generatedPlan.sessions);
 
       if (generatedPlan.sessions.isEmpty &&
           generatedPlan.uncoveredTopics.isNotEmpty) {
@@ -238,7 +283,7 @@ class _StudyPlanInputScreenState extends State<StudyPlanInputScreen> {
           'Plan Incomplete by Deadline',
           'Your current daily study commitment for topics (${_studyHoursPerDayController.text} hours) '
               'plus revision (${_revisionMinutesPerDayController.text} mins) '
-              'is insufficient to cover ALL syllabus material by your deadline (${_selectedDeadline.toLocal().toString().substring(0, 10)}). '
+              'is insufficient to cover ALL syllabus material by your deadline (${_selectedDeadline.toLocal().toString().substring(0, 16)}). '
               'The plan will show topics covered up to the deadline. Consider increasing daily study time or extending the deadline. '
               'Topics not covered: ${generatedPlan.uncoveredTopics.map((t) => t.topic).join(', ')}',
         );
@@ -252,6 +297,63 @@ class _StudyPlanInputScreenState extends State<StudyPlanInputScreen> {
       );
     }
   }
+
+  // _scheduleNotifications method (COMMENTED OUT FOR NOW, AS PER MAIN.DART)
+  /*
+  Future<void> _scheduleNotifications(List<StudySession> sessions) async {
+    await flutterLocalNotificationsPlugin.cancelAll();
+
+    int notificationId = 0;
+
+    for (var session in sessions) {
+      if (session.scheduledDate != null && session.scheduledStartTime != null) {
+        final List<String> timeParts = session.scheduledStartTime!.split(':');
+        final int hour = int.parse(timeParts[0]);
+        final int minute = int.parse(timeParts[1]);
+
+        final scheduledDateTime = DateTime(
+          session.scheduledDate!.year,
+          session.scheduledDate!.month,
+          session.scheduledDate!.day,
+          hour,
+          minute,
+        );
+
+        if (scheduledDateTime.isAfter(DateTime.now())) {
+          final String title = session.isRevision ? 'Study Revision Time!' : session.isBreak ? 'Break Time!' : 'Time to Study: ${session.topic?.topic ?? 'A Topic'}';
+          final String body = 'Your session for ${session.unitName} starts now. Allocated: ${session.allocatedTimeMinutes} mins.';
+
+          final AndroidNotificationDetails androidDetails =
+              const AndroidNotificationDetails(
+            'study_channel_id',
+            'Study Reminders',
+            channelDescription: 'Notifications for your scheduled study sessions',
+            importance: Importance.high,
+            priority: Priority.high,
+            ticker: 'Study Reminder',
+          );
+          final NotificationDetails platformDetails = NotificationDetails(
+            android: androidDetails,
+          );
+
+          await flutterLocalNotificationsPlugin.zonedSchedule(
+            notificationId++,
+            title,
+            body,
+            tz.TZDateTime.from(scheduledDateTime, tz.local),
+            platformDetails,
+            uiLocalNotificationDateInterpretation:
+                UILocalNotificationDateInterpretation.absoluteTime,
+            matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+            payload: 'session_id_${notificationId}',
+          );
+          print('DEBUG: Scheduled notification for ${session.topic?.topic ?? (session.isRevision ? 'Revision' : 'Break')} at ${scheduledDateTime.toLocal()}');
+        }
+      }
+    }
+    print('DEBUG: Finished scheduling notifications.');
+  }
+  */
 
   void _showErrorDialog(String title, String message) {
     showDialog(
@@ -322,7 +424,11 @@ class _StudyPlanInputScreenState extends State<StudyPlanInputScreen> {
                   }
                   final int currentRevisionMins =
                       int.tryParse(_revisionMinutesPerDayController.text) ?? 0;
-                  if (double.parse(value) == 0 && currentRevisionMins == 0) {
+                  final int currentBreakMins =
+                      int.tryParse(_breakMinutesController.text) ?? 0;
+                  if (double.parse(value) == 0 &&
+                      currentRevisionMins == 0 &&
+                      currentBreakMins == 0) {
                     return 'Total daily study time cannot be zero.';
                   }
                   return null;
@@ -352,13 +458,51 @@ class _StudyPlanInputScreenState extends State<StudyPlanInputScreen> {
                   }
                   final double currentTopicHours =
                       double.tryParse(_studyHoursPerDayController.text) ?? 0;
-                  if (currentTopicHours == 0 && int.parse(value) == 0) {
+                  final int currentBreakMins =
+                      int.tryParse(_breakMinutesController.text) ?? 0;
+                  if (currentTopicHours == 0 &&
+                      int.parse(value) == 0 &&
+                      currentBreakMins == 0) {
                     return 'Total daily study time cannot be zero.';
                   }
                   return null;
                 },
                 onChanged: (value) {
                   _updateCalculatedDisplayValues(); // Recalculate suggestion when revision minutes are changed
+                },
+              ),
+              const SizedBox(height: 20),
+              TextFormField(
+                controller: _breakMinutesController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Break Minutes After Each Session',
+                  hintText: 'e.g., 5 (for 5 minutes)',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter break minutes.';
+                  }
+                  if (int.tryParse(value) == null) {
+                    return 'Please enter a valid integer (e.g., 5).';
+                  }
+                  if (int.parse(value) < 0) {
+                    return 'Minutes cannot be negative.';
+                  }
+                  final double currentTopicHours =
+                      double.tryParse(_studyHoursPerDayController.text) ?? 0;
+                  final int currentRevisionMins =
+                      int.tryParse(_revisionMinutesPerDayController.text) ?? 0;
+                  if (currentTopicHours == 0 &&
+                      currentRevisionMins == 0 &&
+                      int.parse(value) == 0) {
+                    return 'Total daily study time cannot be zero.';
+                  }
+                  return null;
+                },
+                onChanged: (value) {
+                  _updateCalculatedDisplayValues(); // Recalculate suggestion when break minutes are changed
                 },
               ),
               const SizedBox(height: 20),
@@ -395,8 +539,8 @@ class _StudyPlanInputScreenState extends State<StudyPlanInputScreen> {
                 icon: const Icon(Icons.school),
                 label: const Text('Generate Study Plan'),
                 style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                  textStyle: const TextStyle(fontSize: 18),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  textStyle: const TextStyle(fontSize: 16),
                 ),
               ),
             ],

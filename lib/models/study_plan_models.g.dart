@@ -42,6 +42,7 @@ StudySession _$StudySessionFromJson(Map<String, dynamic> json) => StudySession(
       ? null
       : DateTime.parse(json['scheduledDate'] as String),
   isRevision: json['isRevision'] as bool? ?? false,
+  isBreak: json['isBreak'] as bool? ?? false,
   scheduledStartTime: json['scheduledStartTime'] as String?,
 );
 
@@ -52,5 +53,6 @@ Map<String, dynamic> _$StudySessionToJson(StudySession instance) =>
       'allocatedTimeMinutes': instance.allocatedTimeMinutes,
       'scheduledDate': instance.scheduledDate?.toIso8601String(),
       'isRevision': instance.isRevision,
+      'isBreak': instance.isBreak,
       'scheduledStartTime': instance.scheduledStartTime,
     };

@@ -5,15 +5,15 @@ import '../models/study_plan_models.dart';
 import 'package:flutter/material.dart'; // Import for TimeOfDay
 
 class StudyPlanGenerator {
-  // Method to generate the study plan using a sequential, time-boxed algorithm
   static StudyPlan generatePlan({
-    required SyllabusAnalysisResponse syllabus,
     required String planTitle,
     required int totalAllocatedTimeMinutesUserCommitment,
     required DateTime deadline,
     required int minutesPerDayForTopics,
     required int revisionMinutesPerDay,
-    required TimeOfDay dailyStudyStartTime, // Daily study start time
+    required TimeOfDay dailyStudyStartTime,
+    required int breakMinutes, // Break minutes after each session
+    required SyllabusAnalysisResponse syllabus,
   }) {
     print('DEBUG: --- Study Plan Generation Started (Sequential) ---');
     print('DEBUG: Plan Title: $planTitle');
@@ -24,9 +24,8 @@ class StudyPlanGenerator {
     print(
       'DEBUG: Minutes Per Day for Revision: $revisionMinutesPerDay minutes',
     );
+    print('DEBUG: Break Minutes After Session: $breakMinutes minutes');
     print('DEBUG: Deadline: $deadline');
-    // FIX: Removed AlwaysMaterialDirectionality from TimeOfDay format.
-    // Format TimeOfDay for debug print using hour and minute directly.
     print(
       'DEBUG: Daily Study Start Time: ${dailyStudyStartTime.hour.toString().padLeft(2, '0')}:${dailyStudyStartTime.minute.toString().padLeft(2, '0')}',
     );
@@ -40,6 +39,7 @@ class StudyPlanGenerator {
         .where((item) => item.estimatedTime > 0)
         .map(
           (item) => TopicItem(
+            // Create new TopicItem instances for mutable estimatedTime
             unitName: item.unitName,
             topicObject: item.topicObject,
             estimatedTime: item.estimatedTime,
@@ -65,23 +65,22 @@ class StudyPlanGenerator {
       DateTime.now().day,
     );
 
-    // If it's late in the current day, start planning from tomorrow
     if (DateTime.now().hour >= 20) {
       currentDate = currentDate.add(const Duration(days: 1));
     }
 
     int topicIndex = 0;
 
-    // The plan will only schedule sessions up to the deadline.
-    // Topics not covered will be put into uncoveredTopics list.
-    // The loop condition ensures we only schedule UP TO the deadline.
     while (currentDate.isBefore(deadline.add(const Duration(days: 1)))) {
       print(
         'DEBUG: Scheduling for date: ${currentDate.toLocal().toIso8601String().substring(0, 10)}',
       );
 
-      int dailyMinutesUsed =
-          0; // Track total minutes used for this specific day
+      int dailyMinutesRemainingBudget =
+          minutesPerDayForTopics +
+          revisionMinutesPerDay; // Total study time budget for the day
+      int dailyStudyMinutesScheduled =
+          0; // Tracks actual study minutes scheduled (topics + revision)
 
       DateTime currentSessionStartTime = DateTime(
         currentDate.year,
@@ -91,17 +90,51 @@ class StudyPlanGenerator {
         dailyStudyStartTime.minute,
       );
 
-      // --- 1. Prioritize Topics for the Day ---
-      int minutesForTopicsTodayBudget = minutesPerDayForTopics;
-      while (minutesForTopicsTodayBudget > 0 &&
+      // --- 1. Schedule all Topics for the Day First ---
+      int currentDayTopicMinutesScheduled = 0;
+      while (minutesPerDayForTopics > currentDayTopicMinutesScheduled &&
           topicIndex < topicsToSchedule.length) {
         TopicItem currentTopicItem = topicsToSchedule[topicIndex];
         int timeToAllocateToTopic = min(
           currentTopicItem.estimatedTime,
-          minutesForTopicsTodayBudget,
+          minutesPerDayForTopics - currentDayTopicMinutesScheduled,
         );
 
-        if (timeToAllocateToTopic > 0) {
+        // Check if this topic + potential break fits the remaining total daily budget for *study*
+        // A break will be inserted BEFORE this session if it's not the very first session of the day
+        int totalBlockTimeIncludingBreak = timeToAllocateToTopic;
+        if (currentDayTopicMinutesScheduled > 0 &&
+            breakMinutes > 0 &&
+            (dailyStudyMinutesScheduled +
+                    timeToAllocateToTopic +
+                    breakMinutes) <=
+                dailyMinutesRemainingBudget) {
+          // If there's an existing session on this day, add a break BEFORE the next study session
+          sessions.add(
+            StudySession(
+              unitName: 'Break',
+              topic: null,
+              allocatedTimeMinutes: breakMinutes,
+              scheduledDate: currentDate,
+              isRevision: false,
+              isBreak: true,
+              scheduledStartTime: currentSessionStartTime
+                  .toLocal()
+                  .toString()
+                  .substring(11, 16),
+            ),
+          );
+          currentSessionStartTime = currentSessionStartTime.add(
+            Duration(minutes: breakMinutes),
+          );
+          print(
+            'DEBUG:   Added ${breakMinutes} min break before topic session.',
+          );
+        }
+
+        if (timeToAllocateToTopic > 0 &&
+            (dailyStudyMinutesScheduled + timeToAllocateToTopic) <=
+                dailyMinutesRemainingBudget) {
           sessions.add(
             StudySession(
               unitName: currentTopicItem.unitName,
@@ -109,55 +142,113 @@ class StudyPlanGenerator {
               allocatedTimeMinutes: timeToAllocateToTopic,
               scheduledDate: currentDate,
               isRevision: false,
+              isBreak: false,
               scheduledStartTime: currentSessionStartTime
                   .toLocal()
                   .toString()
-                  .substring(11, 16), // Format to HH:MM
+                  .substring(11, 16),
             ),
           );
           currentTopicItem.estimatedTime -= timeToAllocateToTopic;
-          minutesForTopicsTodayBudget -= timeToAllocateToTopic;
-          dailyMinutesUsed += timeToAllocateToTopic;
+          currentDayTopicMinutesScheduled +=
+              timeToAllocateToTopic; // Track topics used this day
+          dailyStudyMinutesScheduled +=
+              timeToAllocateToTopic; // Track total study used this day
           currentSessionStartTime = currentSessionStartTime.add(
             Duration(minutes: timeToAllocateToTopic),
-          ); // Advance start time
+          );
 
           if (currentTopicItem.estimatedTime <= 0) {
             topicIndex++;
           }
         } else {
-          break; // No more topic time for today within topic budget
+          break; // Topic doesn't fit in remaining topic budget for the day
         }
       }
 
-      // --- 2. Allocate Revision for the Day (Only if user specified revision time) ---
+      // --- 2. Schedule Revision for the Day (After all topics for the day are scheduled) ---
+      // FIX: Stricter condition for scheduling revision
       if (revisionMinutesPerDay > 0) {
-        bool topicsStillExist = topicIndex < topicsToSchedule.length;
-        bool topicsWereScheduledToday = dailyMinutesUsed > 0;
+        bool topicsAllCoveredGlobally = topicIndex >= topicsToSchedule.length;
+        bool topicsScheduledToday = currentDayTopicMinutesScheduled > 0;
 
-        if (topicsWereScheduledToday || !topicsStillExist) {
-          sessions.add(
-            StudySession(
-              unitName: 'General Revision',
-              topic: null,
-              allocatedTimeMinutes: revisionMinutesPerDay,
-              scheduledDate: currentDate,
-              isRevision: true,
-              scheduledStartTime: currentSessionStartTime
-                  .toLocal()
-                  .toString()
-                  .substring(11, 16), // Format to HH:MM
-            ),
-          );
-          dailyMinutesUsed += revisionMinutesPerDay;
+        // Only add revision if topics were scheduled today, OR all topics are covered globally,
+        // OR if the user's topic budget for the day is 0 (meaning they only allocated for revision)
+        if (topicsScheduledToday ||
+            topicsAllCoveredGlobally ||
+            minutesPerDayForTopics == 0) {
+          // Add break before revision if there were previous study blocks today (topic or break)
+          // AND breakMinutes > 0 AND it fits in the remaining daily budget
+          if (currentDayTopicMinutesScheduled > 0 &&
+              breakMinutes > 0 &&
+              (dailyStudyMinutesScheduled +
+                      revisionMinutesPerDay +
+                      breakMinutes) <=
+                  dailyMinutesRemainingBudget) {
+            sessions.add(
+              StudySession(
+                unitName: 'Break',
+                topic: null,
+                allocatedTimeMinutes: breakMinutes,
+                scheduledDate: currentDate,
+                isRevision: false,
+                isBreak: true,
+                scheduledStartTime: currentSessionStartTime
+                    .toLocal()
+                    .toString()
+                    .substring(11, 16),
+              ),
+            );
+            currentSessionStartTime = currentSessionStartTime.add(
+              Duration(minutes: breakMinutes),
+            );
+            print(
+              'DEBUG:   Added ${breakMinutes} min break before revision session.',
+            );
+          }
+
+          // Check if revision fits within the total daily study budget
+          if ((dailyStudyMinutesScheduled + revisionMinutesPerDay) <=
+              dailyMinutesRemainingBudget) {
+            sessions.add(
+              StudySession(
+                unitName: 'General Revision',
+                topic: null,
+                allocatedTimeMinutes: revisionMinutesPerDay,
+                scheduledDate: currentDate,
+                isRevision: true,
+                isBreak: false,
+                scheduledStartTime: currentSessionStartTime
+                    .toLocal()
+                    .toString()
+                    .substring(11, 16),
+              ),
+            );
+            dailyStudyMinutesScheduled += revisionMinutesPerDay;
+            currentSessionStartTime = currentSessionStartTime.add(
+              Duration(minutes: revisionMinutesPerDay),
+            );
+          }
         }
       }
 
-      if (dailyMinutesUsed == 0 &&
+      // This condition handles a very rare edge case: if total daily budget is 0 for all types, but topics are not exhausted.
+      // It ensures the date still advances to avoid an infinite loop.
+      // Also checks if nothing was scheduled today but there's potential study.
+      if (dailyStudyMinutesScheduled == 0 &&
           topicIndex < topicsToSchedule.length &&
-          (minutesPerDayForTopics + revisionMinutesPerDay == 0)) {
+          (minutesPerDayForTopics + revisionMinutesPerDay + breakMinutes ==
+              0)) {
         print(
-          'DEBUG: Daily budget is 0, but topics remain. Advancing date without scheduling.',
+          'DEBUG: Daily budget is 0, but topics remain. Advancing date without scheduling anything.',
+        );
+      } else if (dailyStudyMinutesScheduled == 0 &&
+          (minutesPerDayForTopics > 0 ||
+              revisionMinutesPerDay > 0 ||
+              breakMinutes > 0) &&
+          topicIndex < topicsToSchedule.length) {
+        print(
+          'DEBUG: No study scheduled today despite budget & topics. This implies blocks are too small or daily time is exhausted. Advancing date.',
         );
       }
 
@@ -186,7 +277,15 @@ class StudyPlanGenerator {
     final int calculatedTotalRevisionTimeMinutes = finalSessions
         .where((s) => s.isRevision)
         .fold(0, (sum, s) => sum + s.allocatedTimeMinutes);
+    final int calculatedTotalBreakTimeMinutes = finalSessions
+        .where((s) => s.isBreak)
+        .fold(0, (sum, s) => sum + s.allocatedTimeMinutes);
 
+    // FIX: Removed sorting by scheduledStartTime from generator. This should be handled by user reordering.
+    // However, for initial display consistency, we might still want a basic sort.
+    // If the goal is strict sequential from input, only sorting by date should be required.
+    // The previous sort would be good for displaying sessions in order on display screen.
+    // So let's keep a stable sort by time within day for generator's output.
     finalSessions.sort((a, b) {
       int dateCompare = a.scheduledDate!.compareTo(b.scheduledDate!);
       if (dateCompare != 0) return dateCompare;
@@ -195,8 +294,12 @@ class StudyPlanGenerator {
       if (a.scheduledStartTime != null && b.scheduledStartTime != null) {
         return a.scheduledStartTime!.compareTo(b.scheduledStartTime!);
       }
+      // If start times are identical (unlikely with accurate scheduling), use tie-breakers
+      // Breaks come after actual study/revision if start times are identical
+      if (!a.isBreak && b.isBreak) return -1;
+      if (a.isBreak && !b.isBreak) return 1;
 
-      // Secondary: Non-revision sessions before revision sessions if start times are identical
+      // Non-revision sessions before revision if start times are identical
       if (!a.isRevision && b.isRevision) return -1;
       if (a.isRevision && !b.isRevision) return 1;
 
@@ -204,16 +307,19 @@ class StudyPlanGenerator {
     });
 
     print(
-      'DEBUG: Generated Study Plan with ${finalSessions.length} sessions (including revision).',
+      'DEBUG: Generated Study Plan with ${finalSessions.length} sessions (including revision & breaks).',
     );
     print(
       'DEBUG: User Committed Total Time (up to deadline): $totalAllocatedTimeMinutesUserCommitment minutes',
     );
     print(
-      'DEBUG: Total Scheduled Time in Plan: $totalScheduledMinutesInPlan minutes',
+      'DEBUG: Total Scheduled Study Time in Plan (Topics + Revision): ${totalScheduledMinutesInPlan - calculatedTotalBreakTimeMinutes} minutes',
     );
     print(
       'DEBUG: Total Revision Time in Plan: $calculatedTotalRevisionTimeMinutes minutes',
+    );
+    print(
+      'DEBUG: Total Break Time in Plan: $calculatedTotalBreakTimeMinutes minutes',
     );
     print('DEBUG: Uncovered Topics Count: ${uncoveredTopics.length}');
     print('DEBUG: --- Study Plan Generation Finished ---');
