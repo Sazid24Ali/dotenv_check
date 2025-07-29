@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math'; // For min function
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:http/http.dart' as http;
+import 'package:http/http.dart' as http; // Re-import http for direct calls
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -11,36 +11,28 @@ import '../models/syllabus_analyzer_models.dart';
 import '../utils/syllabus_calculator.dart';
 
 class GeminiService {
+
   static String _cleanJsonMarkdown(String rawResponse) {
     final cleaned = rawResponse.trim();
     if (cleaned.startsWith('```json') && cleaned.endsWith('```')) {
-      return cleaned
-          .substring('```json'.length, cleaned.length - '```'.length)
-          .trim();
+      return cleaned.substring('```json'.length, cleaned.length - '```'.length).trim();
     }
     if (cleaned.startsWith('```') && cleaned.endsWith('```')) {
-      return cleaned
-          .substring('```'.length, cleaned.length - '```'.length)
-          .trim();
+      return cleaned.substring('```'.length, cleaned.length - '```'.length).trim();
     }
     return cleaned;
   }
 
-  static Future<SyllabusAnalysisResponse?> analyzeSyllabus(
-    String syllabusText,
-  ) async {
+  static Future<SyllabusAnalysisResponse?> analyzeSyllabus(String syllabusText) async {
     final apiKey = dotenv.env['GEMINI_API_KEY'];
     if (apiKey == null || apiKey.isEmpty) {
-      throw Exception(
-        'GEMINI_API_KEY not found in .env. Please add it to your .env file.',
-      );
+      throw Exception('GEMINI_API_KEY not found in .env. Please add it to your .env file.');
     }
 
-    final endpoint =
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey';
+    final endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey';
 
-    final prompt =
-        """
+    // *** REVERTED TO FULL COMPLEX PROMPT - NOW EXPECTING FULL RESPONSE VIA STREAMING ***
+    final prompt = """
 You are an expert academic syllabus analyzer AI.
 
 Your task is to meticulously parse the following OCR text of a course syllabus.
@@ -119,36 +111,20 @@ $syllabusText
 
 """;
 
-    final body = {
-      "contents": [
-        {
-          "parts": [
-            {"text": prompt},
-          ],
-        },
-      ],
-      "generationConfig": {
-        "temperature": 0.1, // Keep low for deterministic output
-        "topP": 0.1,
-        "topK": 1,
-      },
-    };
-
     try {
       final request = http.Request('POST', Uri.parse(endpoint));
       request.headers.addAll({'Content-Type': 'application/json'});
       request.body = jsonEncode(body);
 
       final streamedResponse = await request.send();
-
+      
       // Collect streamed chunks
       final responseBodyChunks = <List<int>>[];
       await for (var chunk in streamedResponse.stream) {
         responseBodyChunks.add(chunk);
       }
-      final fullResponseBody = utf8.decode(
-        responseBodyChunks.expand((x) => x).toList(),
-      );
+      final fullResponseBody = utf8.decode(responseBodyChunks.expand((x) => x).toList());
+
 
       if (streamedResponse.statusCode == 200) {
         if (fullResponseBody.isEmpty) {
@@ -160,57 +136,35 @@ $syllabusText
         try {
           jsonResponse = json.decode(fullResponseBody); // Use full body
         } catch (e) {
-          print(
-            'Gemini API: Failed to decode response body as JSON. Error: $e',
-          );
-          print(
-            'Gemini API: Received body:\n$fullResponseBody',
-          ); // Print full body on decode error
-          throw Exception(
-            'Gemini API: Invalid JSON received: ${fullResponseBody.substring(0, min(fullResponseBody.length, 200))}...',
-          );
+          print('Gemini API: Failed to decode response body as JSON. Error: $e');
+          print('Gemini API: Received body:\n$fullResponseBody'); // Print full body on decode error
+          throw Exception('Gemini API: Invalid JSON received: ${fullResponseBody.substring(0, min(fullResponseBody.length, 200))}...');
         }
-
+        
         final List<dynamic>? candidates = jsonResponse['candidates'];
         if (candidates == null || candidates.isEmpty) {
           print('Gemini API: No candidates found in response.');
           if (jsonResponse['promptFeedback'] != null) {
-            print(
-              'Gemini API: Prompt Feedback: ${jsonResponse['promptFeedback']}',
-            );
+            print('Gemini API: Prompt Feedback: ${jsonResponse['promptFeedback']}');
             if (jsonResponse['promptFeedback']['safetyRatings'] != null) {
-              print(
-                'Gemini API: Safety Ratings: ${jsonResponse['promptFeedback']['safetyRatings']}',
-              );
-              throw Exception(
-                'Gemini API: Content potentially blocked due to safety concerns.',
-              );
+              print('Gemini API: Safety Ratings: ${jsonResponse['promptFeedback']['safetyRatings']}');
+              throw Exception('Gemini API: Content potentially blocked due to safety concerns.');
             }
           }
-          throw Exception(
-            'Gemini API: Response missing expected "candidates" or it is empty.',
-          );
+          throw Exception('Gemini API: Response missing expected "candidates" or it is empty.');
         }
 
         final Map<String, dynamic>? firstCandidate = candidates[0];
-        if (firstCandidate == null ||
-            firstCandidate['content'] == null ||
-            firstCandidate['content']['parts'] == null) {
-          print(
-            'Gemini API: First candidate or its content/parts is null/malformed.',
-          );
+        if (firstCandidate == null || firstCandidate['content'] == null || firstCandidate['content']['parts'] == null) {
+          print('Gemini API: First candidate or its content/parts is null/malformed.');
           print('Gemini API: First candidate JSON: $firstCandidate');
-          throw Exception(
-            'Gemini API: Response structure for content missing in first candidate.',
-          );
+          throw Exception('Gemini API: Response structure for content missing in first candidate.');
         }
 
         final List<dynamic>? parts = firstCandidate['content']['parts'];
         if (parts == null || parts.isEmpty) {
           print('Gemini API: Parts list is null or empty in first candidate.');
-          throw Exception(
-            'Gemini API: Response missing expected "parts" or it is empty.',
-          );
+          throw Exception('Gemini API: Response missing expected "parts" or it is empty.');
         }
 
         final String? rawGeminiText = parts[0]?['text'];
@@ -218,42 +172,31 @@ $syllabusText
 
         if (rawGeminiText != null && rawGeminiText.isNotEmpty) {
           cleanText = _cleanJsonMarkdown(rawGeminiText); // Assign value here
-
+          
           print('DEBUG: Cleaned JSON from Gemini for parsing:\n$cleanText');
 
           // --- SAVE RAW RESPONSE TO FILE FOR DEBUGGING ---
           try {
-            // Check for storage permission. On modern Android/iOS, writing to getApplicationDocumentsDirectory()
-            // often doesn't require explicit storage permission pop-ups, but it's good to be cautious.
-            var status = await Permission.storage
-                .request(); // This might be redundant for app-private files
-            if (status.isGranted ||
-                Platform.isAndroid &&
-                    (await Permission.storage.status).isGranted ||
-                Platform.isIOS) {
+            // Request storage permission
+            var status = await Permission.storage.request();
+            if (status.isGranted) {
               final directory = await getApplicationDocumentsDirectory();
-              final file = File('${directory.path}/gemini_raw_response.json');
-              await file.writeAsString(
-                fullResponseBody,
-              ); // Use fullResponseBody here
-              print('DEBUG: Gemini raw response saved to: ${file.path}');
-              print('DEBUG: Please inspect this file to see the full JSON.');
+              final file = File('${directory.path}/gemini_parsed_response_debug.json');
+              await file.writeAsString(cleanText);
+              print('DEBUG: Gemini parsed response saved to: ${file.path}');
+              print('DEBUG: Please inspect this file to see the full JSON output.');
             } else {
-              print(
-                'DEBUG: Storage permission denied or not required. Cannot save raw response to file. '
-                'For Android 10+ and iOS, files usually go to app-specific dirs without explicit "storage" permission pop-up. '
-                'You might still find it in device file explorer at /Android/data/YOUR_PACKAGE_NAME/files/',
-              );
+              print('DEBUG: Storage permission denied. Cannot save parsed response to file. Please grant permission.');
             }
           } catch (e) {
-            print('DEBUG: Error saving raw response to file: $e');
+            print('DEBUG: Error saving parsed response to file: $e');
           }
           // --- END NEW: SAVE RAW RESPONSE TO FILE ---
 
-          final Map<String, dynamic> parsedJson = json.decode(cleanText);
-          final SyllabusAnalysisResponse syllabusResponse =
-              SyllabusAnalysisResponse.fromJson(parsedJson);
 
+          final Map<String, dynamic> parsedJson = json.decode(cleanText);
+          final SyllabusAnalysisResponse syllabusResponse = SyllabusAnalysisResponse.fromJson(parsedJson);
+          
           SyllabusCalculator.calculateAllTotals(syllabusResponse);
 
           return syllabusResponse;
@@ -262,13 +205,9 @@ $syllabusText
           return null;
         }
       } else {
-        print(
-          'Gemini API request failed with status: ${streamedResponse.statusCode}',
-        );
-        print('Response body for failed request: $fullResponseBody');
-        throw Exception(
-          'Failed to analyze syllabus: ${streamedResponse.statusCode} - ${fullResponseBody.substring(0, min(fullResponseBody.length, 200))}...',
-        );
+        print('Gemini API request failed with status: ${streamedResponse.statusCode}'); // Use streamedResponse.statusCode
+        print('Response body for failed request: $fullResponseBody'); // Use fullResponseBody
+        throw Exception('Failed to analyze syllabus: ${streamedResponse.statusCode} - ${fullResponseBody.substring(0, min(fullResponseBody.length, 200))}...');
       }
     } catch (e) {
       print('Error during Gemini API call: $e');

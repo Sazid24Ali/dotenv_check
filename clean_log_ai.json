@@ -1,0 +1,242 @@
+{
+  "is_syllabus": true,
+  "total_estimated_time_for_syllabus": 0,
+  "course_title": "Introduction to Artificial Intelligence",
+  "course_code": "",
+  "instructor": "",
+  "semester": "",
+  "year": 0,
+  "learning_objectives": [],
+  "grading_breakdown": {},
+  "weekly_schedule": [
+    {
+      "week_number": 1,
+      "topic": "Unit -I\nIntroduction to Artificial Intelligence",
+      "subtopics": [
+        {
+          "week_number": 1,
+          "topic": "introduction. Al techniques, problem solving with Al, Al models, data acquisition and learning aspects in AI",
+          "subtopics": [],
+          "estimated_time": 60,
+          "importance": 3,
+          "difficulty": 3,
+          "readings": [],
+          "assignments": [],
+          "web_search_keywords": [],
+          "suggested_resources": [],
+          "time_reasoning": "Estimated 60 minutes based on topic complexity for a standard university course. No explicit time found."
+        },
+        {
+          "week_number": 1,
+          "topic": "Problem Solving: problem-solving process, formulating problem, problem types and characteristics, problem analysis and representation, problem space and search, toy problems, real-world problems, problen reduction methods",
+          "subtopics": [],
+          "estimated_time": 90,
+          "importance": 3,
+          "difficulty": 3,
+          "readings": [],
+          "assignments": [],
+          "web_search_keywords": [],
+          "suggested_resources": [],
+          "time_reasoning": "Estimated 90 minutes based on topic complexity for a standard university course. No explicit time found."
+        },
+        {
+          "week_number": 1,
+          "topic": "Uniformed Search: general search algorithm, uniformed search methods - BFS, uniform cost search, DFS, DLS, IS, bi-directional search, comparison of the uniformed techniques",
+          "subtopics": [],
+          "estimated_time": 75,
+          "importance": 3,
+          "difficulty": 3,
+          "readings": [],
+          "assignments": [],
+          "web_search_keywords": [],
+          "suggested_resources": [],
+          "time_reasoning": "Estimated 75 minutes based on topic complexity for a standard university course. No explicit time found."
+        }
+      ],
+      "estimated_time": 225,
+      "importance": 3,
+      "difficulty": 3,
+      "readings": [],
+      "assignments": [],
+      "web_search_keywords": [],
+      "suggested_resources": []
+    },
+    {
+      "week_number": 2,
+      "topic": "Unit -II\nInfomed Search",
+      "subtopics": [
+        {
+          "week_number": 2,
+          "topic": "generate and test, best first search, greedy search, A* search. memory bounded heuristic search, heuristic function, A0* search, local search algorithms and optimization problems, adversarial search methods (game theory), online search algorithms",
+          "subtopics": [],
+          "estimated_time": 120,
+          "importance": 3,
+          "difficulty": 3,
+          "readings": [],
+          "assignments": [],
+          "web_search_keywords": [],
+          "suggested_resources": [],
+          "time_reasoning": "Estimated 120 minutes based on topic complexity for a standard university course. No explicit time found."
+        },
+        {
+          "week_number": 2,
+          "topic": "What is an intelligent agent? Types of agent, what is constraint satisfaction problem (CSP), cSP as search problem. local search for CSP, formulating problem structure",
+          "subtopics": [],
+          "estimated_time": 60,
+          "importance": 3,
+          "difficulty": 3,
+          "readings": [],
+          "assignments": [],
+          "web_search_keywords": [],
+          "suggested_resources": [],
+          "time_reasoning": "Estimated 60 minutes based on topic complexity for a standard university course. No explicit time found."
+        },
+        {
+          "week_number": 2,
+          "topic": "Knowledge and Reasoning: knowledge representation, know ledge-based agents, the wumpus world, logic, propositional logic, predicate logic, unification and lifting: inference in FOL, representing knowledge using rules, semantic networks, frame systems, inference, types of reasoning",
+          "subtopics": [],
+          "estimated_time": 120,
+          "importance": 3,
+          "difficulty": 3,
+          "readings": [],
+          "assignments": [],
+          "web_search_keywords": [],
+          "suggested_resources": [],
+          "time_reasoning": "Estimated 120 minutes based on topic complexity for a standard university course. No explicit time found."
+        }
+      ],
+      "estimated_time": 300,
+      "importance": 3,
+      "difficulty": 3,
+      "readings": [],
+      "assignments": [],
+      "web_search_keywords": [],
+      "suggested_resources": []
+    },
+    {
+      "week_number": 3,
+      "topic": "Unit -III\nUncertain Knowledge and Reasoning",
+      "subtopics": [
+        {
+          "week_number": 3,
+          "topic": "uncertainty and methods, Bayesian probability and belief network, probabilistic reasoning, probabilistic reasoning over time, forward and backward reasoning, perception, making simple decisions, making complex decisions, other techniques in uncertainty and reasoning process",
+          "subtopics": [],
+          "estimated_time": 90,
+          "importance": 3,
+          "difficulty": 3,
+          "readings": [],
+          "assignments": [],
+          "web_search_keywords": [],
+          "suggested_resources": [],
+          "time_reasoning": "Estimated 90 minutes based on topic complexity for a standard university course. No explicit time found."
+        },
+        {
+          "week_number": 3,
+          "topic": "Planning problem, simple planning agent, planning languages, blocks world, goal stack planning, means-ends analysis, planning as a state-space search",
+          "subtopics": [],
+          "estimated_time": 75,
+          "importance": 3,
+          "difficulty": 3,
+          "readings": [],
+          "assignments": [],
+          "web_search_keywords": [],
+          "suggested_resources": [],
+          "time_reasoning": "Estimated 75 minutes based on topic complexity for a standard university course. No explicit time found."
+        },
+        {
+          "week_number": 3,
+          "topic": "Learning: what is machine learning? Learning paradigms, learning concepts, methods and models, statistical learning methods, artificial neural networks-based learning, support vector machines, reinforcement learning",
+          "subtopics": [],
+          "estimated_time": 90,
+          "importance": 3,
+          "difficulty": 3,
+          "readings": [],
+          "assignments": [],
+          "web_search_keywords": [],
+          "suggested_resources": [],
+          "time_reasoning": "Estimated 90 minutes based on topic complexity for a standard university course. No explicit time found."
+        }
+      ],
+      "estimated_time": 255,
+      "importance": 3,
+      "difficulty": 3,
+      "readings": [],
+      "assignments": [],
+      "web_search_keywords": [],
+      "suggested_resources": []
+    },
+    {
+      "week_number": 4,
+      "topic": "Unit-- IV\nExpert Systems",
+      "subtopics": [
+        {
+          "week_number": 4,
+          "topic": "architecture of expert system, confidence factors, existing expert systems, knowledge acquisition, shell and explanations, self-explaining system, rule-based expert systems, forward and backward chaining. frame-based expert systems, uncertainty management in expert systems, expert system and DSS. pros and cons of expert systems, case study",
+          "subtopics": [],
+          "estimated_time": 120,
+          "importance": 3,
+          "difficulty": 3,
+          "readings": [],
+          "assignments": [],
+          "web_search_keywords": [],
+          "suggested_resources": [],
+          "time_reasoning": "Estimated 120 minutes based on topic complexity for a standard university course. No explicit time found."
+        },
+        {
+          "week_number": 4,
+          "topic": "Pattern Recognition: machine perception and pattern recognition, feature extraction, classification, object recognition, speech recognition, pattern mining",
+          "subtopics": [],
+          "estimated_time": 60,
+          "importance": 3,
+          "difficulty": 3,
+          "readings": [],
+          "assignments": [],
+          "web_search_keywords": [],
+          "suggested_resources": [],
+          "time_reasoning": "Estimated 60 minutes based on topic complexity for a standard university course. No explicit time found."
+        },
+        {
+          "week_number": 4,
+          "topic": "Game Playing: important concepts of game theory,. game playing and knowledge structure, game as search problem. alpha-beta pruning, game theory problems, robotics",
+          "subtopics": [],
+          "estimated_time": 60,
+          "importance": 3,
+          "difficulty": 3,
+          "readings": [],
+          "assignments": [],
+          "web_search_keywords": [],
+          "suggested_resources": [],
+          "time_reasoning": "Estimated 60 minutes based on topic complexity for a standard university course. No explicit time found."
+        },
+        {
+          "week_number": 4,
+          "topic": "Concepts and terminology of ANN, feed-forward NN, feedback networks, pattern associative networks, Competitive learning. fuzzy sets, fuzzy inference process, neuro-fuzzy systems, range of Al applications, Al applications and examples, case study: agricultural domain - farmer's intelligent assistant",
+          "subtopics": [],
+          "estimated_time": 90,
+          "importance": 3,
+          "difficulty": 3,
+          "readings": [],
+          "assignments": [],
+          "web_search_keywords": [],
+          "suggested_resources": [],
+          "time_reasoning": "Estimated 90 minutes based on topic complexity for a standard university course. No explicit time found."
+        }
+      ],
+      "estimated_time": 330,
+      "importance": 3,
+      "difficulty": 3,
+      "readings": [],
+      "assignments": [],
+      "web_search_keywords": [],
+      "suggested_resources": []
+    }
+  ],
+  "required_materials": [],
+  "important_dates": [],
+  "contact_information": {
+    "email": "",
+    "office_hours": "",
+    "other_details": ""
+  },
+  "notes_or_disclaimers": ""
+}
