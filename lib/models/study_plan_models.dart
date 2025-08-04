@@ -11,7 +11,7 @@ class StudyPlan {
   final DateTime deadline;
   final List<StudySession> sessions;
   final int totalRevisionTimeMinutes;
-
+  
   @JsonKey(defaultValue: [])
   final List<Topic> uncoveredTopics;
 
@@ -24,14 +24,12 @@ class StudyPlan {
     this.uncoveredTopics = const [],
   });
 
-  factory StudyPlan.fromJson(Map<String, dynamic> json) =>
-      _$StudyPlanFromJson(json);
+  factory StudyPlan.fromJson(Map<String, dynamic> json) => _$StudyPlanFromJson(json);
   Map<String, dynamic> toJson() => _$StudyPlanToJson(this);
 }
 
 @JsonSerializable(explicitToJson: true)
 class StudySession {
-  // Added a unique ID to make sessions reorderable and deletable.
   final String id;
   final String unitName;
   final Topic? topic;
@@ -42,7 +40,7 @@ class StudySession {
   String? scheduledStartTime;
 
   StudySession({
-    required this.id, // ID is now required
+    required this.id,
     required this.unitName,
     this.topic,
     required this.allocatedTimeMinutes,
@@ -52,7 +50,6 @@ class StudySession {
     this.scheduledStartTime,
   });
 
-  factory StudySession.fromJson(Map<String, dynamic> json) =>
-      _$StudySessionFromJson(json);
+  factory StudySession.fromJson(Map<String, dynamic> json) => _$StudySessionFromJson(json);
   Map<String, dynamic> toJson() => _$StudySessionToJson(this);
 }

@@ -147,43 +147,43 @@ class StudyPlanGenerator {
     );
   }
 
-  // --- FIX: Added the 'async' keyword to the function signature ---
   static Future<void> scheduleDailyAlarms(
     StudyPlan plan,
     TimeOfDay alarmTime,
   ) async {
     if (plan.sessions.isEmpty) return;
-
-    final uniqueDates = plan.sessions.map((s) => s.scheduledDate!).toSet();
     final random = Random();
 
-    for (var date in uniqueDates) {
-      final alarmDateTime = DateTime(
-        date.year,
-        date.month,
-        date.day,
-        alarmTime.hour,
-        alarmTime.minute,
-      );
-      if (alarmDateTime.isBefore(DateTime.now())) continue;
+    for (var session in plan.sessions) {
+      if (session.topic != null && !session.isBreak && !session.isRevision) {
+        final alarmDateTime = DateTime(
+          session.scheduledDate!.year,
+          session.scheduledDate!.month,
+          session.scheduledDate!.day,
+          alarmTime.hour,
+          alarmTime.minute,
+        );
 
-      final alarmSettings = AlarmSettings(
-        id: random.nextInt(99999) + 1,
-        dateTime: alarmDateTime,
-        assetAudioPath: 'assets/sounds/alarm.mp3',
-        loopAudio: true,
-        vibrate: true,
-        androidFullScreenIntent: true,
-        volumeSettings: VolumeSettings.fade(
-          volume: 0.8,
-          fadeDuration: const Duration(seconds: 3),
-        ),
-        notificationSettings: const NotificationSettings(
-          title: 'Time to Study!',
-          body: 'Your scheduled study session is starting now.',
-        ),
-      );
-      await Alarm.set(alarmSettings: alarmSettings);
+        if (alarmDateTime.isBefore(DateTime.now())) continue;
+
+        final alarmSettings = AlarmSettings(
+          id: random.nextInt(99999) + 1,
+          dateTime: alarmDateTime,
+          assetAudioPath: 'assets/sounds/alarm.mp3',
+          loopAudio: true,
+          vibrate: true,
+          androidFullScreenIntent: true,
+          volumeSettings: VolumeSettings.fade(
+            volume: 0.8,
+            fadeDuration: const Duration(seconds: 3),
+          ),
+          notificationSettings: NotificationSettings(
+            title: 'Time to study: ${session.topic!.topic}',
+            body: 'Your scheduled session is starting now.',
+          ),
+        );
+        await Alarm.set(alarmSettings: alarmSettings);
+      }
     }
   }
 }

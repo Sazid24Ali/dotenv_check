@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/study_plan_models.dart';
 import '../utils/study_plan_generator.dart';
+import '../widgets/custom_app_bar.dart';
 import 'main_screen.dart';
 
 class StudyPlanDisplayScreen extends StatefulWidget {
@@ -28,6 +29,7 @@ class _StudyPlanDisplayScreenState extends State<StudyPlanDisplayScreen> {
   bool _isSaving = false;
   late StudyPlan _editablePlan;
   Map<DateTime, List<StudySession>> _sessionsByDate = {};
+  Set<String> _completedSessionIds = {};
 
   @override
   void initState() {
@@ -36,6 +38,30 @@ class _StudyPlanDisplayScreenState extends State<StudyPlanDisplayScreen> {
       json.decode(json.encode(widget.plan.toJson())),
     );
     _groupSessionsByDate();
+    _loadCompletedStatus();
+  }
+
+  Future<void> _loadCompletedStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _completedSessionIds = (prefs.getStringList('completed_topic_ids') ?? [])
+          .toSet();
+    });
+  }
+
+  Future<void> _toggleCompletedStatus(String sessionId) async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      if (_completedSessionIds.contains(sessionId)) {
+        _completedSessionIds.remove(sessionId);
+      } else {
+        _completedSessionIds.add(sessionId);
+      }
+    });
+    await prefs.setStringList(
+      'completed_topic_ids',
+      _completedSessionIds.toList(),
+    );
   }
 
   void _groupSessionsByDate() {
@@ -137,7 +163,7 @@ class _StudyPlanDisplayScreenState extends State<StudyPlanDisplayScreen> {
     final sortedDates = _sessionsByDate.keys.toList()..sort();
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: CustomAppBar(
         title: Text(_editablePlan.planTitle),
         actions: [
           _isSaving
@@ -246,12 +272,24 @@ class _StudyPlanDisplayScreenState extends State<StudyPlanDisplayScreen> {
       );
     }
 
+    bool isCompleted = _completedSessionIds.contains(session.id);
+
     return ExpansionTile(
       key: ValueKey(session.id),
-      leading: const Icon(Icons.school, color: Colors.indigo),
+      leading: Checkbox(
+        value: isCompleted,
+        onChanged: (value) => _toggleCompletedStatus(session.id),
+        activeColor: Theme.of(context).colorScheme.secondary,
+      ),
       title: Text(
         session.topic?.topic ?? "Unnamed Topic",
-        style: const TextStyle(fontWeight: FontWeight.bold),
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          decoration: isCompleted
+              ? TextDecoration.lineThrough
+              : TextDecoration.none,
+          color: isCompleted ? Colors.grey[600] : null,
+        ),
       ),
       subtitle: Text('${session.allocatedTimeMinutes} minutes'),
       children: <Widget>[
