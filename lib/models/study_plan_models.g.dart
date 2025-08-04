@@ -33,6 +33,7 @@ Map<String, dynamic> _$StudyPlanToJson(StudyPlan instance) => <String, dynamic>{
 };
 
 StudySession _$StudySessionFromJson(Map<String, dynamic> json) => StudySession(
+  id: json['id'] as String,
   unitName: json['unitName'] as String,
   topic: json['topic'] == null
       ? null
@@ -48,6 +49,7 @@ StudySession _$StudySessionFromJson(Map<String, dynamic> json) => StudySession(
 
 Map<String, dynamic> _$StudySessionToJson(StudySession instance) =>
     <String, dynamic>{
+      'id': instance.id,
       'unitName': instance.unitName,
       'topic': instance.topic?.toJson(),
       'allocatedTimeMinutes': instance.allocatedTimeMinutes,
