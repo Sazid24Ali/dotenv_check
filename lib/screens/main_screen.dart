@@ -57,7 +57,7 @@ class MainScreen extends StatelessWidget {
                 },
                 icon: const Icon(Icons.list_alt, size: 30),
                 label: const Text(
-                  'See My Study Plans',
+                  'My Study Plans',
                   style: TextStyle(fontSize: 18),
                 ),
                 style: ElevatedButton.styleFrom(
