@@ -106,8 +106,9 @@ class _StudyPlanInputScreenState extends State<StudyPlanInputScreen> {
       double suggestedMinutesPerDayForTopics =
           averageTotalDailyMinutesNeeded - revisionMinutesPerDay;
 
-      if (suggestedMinutesPerDayForTopics < 0)
+      if (suggestedMinutesPerDayForTopics < 0) {
         suggestedMinutesPerDayForTopics = 0;
+      }
       if (suggestedMinutesPerDayForTopics > 0 &&
           suggestedMinutesPerDayForTopics < 30) {
         suggestedMinutesPerDayForTopics = 30;

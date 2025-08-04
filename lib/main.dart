@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart'
-    as _tz_data; // Aliased for initializeAll()
+    as tz_data; // Aliased for initializeAll()
 import 'package:timezone/timezone.dart'
     as tz; // Aliased for TZDateTime and local
 import 'package:dotenv_check/screens/main_screen.dart'; // Import MainScreen

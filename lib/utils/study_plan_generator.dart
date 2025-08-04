@@ -128,7 +128,7 @@ class StudyPlanGenerator {
             Duration(minutes: breakMinutes),
           );
           print(
-            'DEBUG:   Added ${breakMinutes} min break before topic session.',
+            'DEBUG:   Added $breakMinutes min break before topic session.',
           );
         }
 
@@ -203,7 +203,7 @@ class StudyPlanGenerator {
               Duration(minutes: breakMinutes),
             );
             print(
-              'DEBUG:   Added ${breakMinutes} min break before revision session.',
+              'DEBUG:   Added $breakMinutes min break before revision session.',
             );
           }
 

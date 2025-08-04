@@ -32,7 +32,7 @@ class MainScreen extends StatelessWidget {
                 },
                 icon: const Icon(Icons.document_scanner, size: 30),
                 label: const Text(
-                  'Scan New Syllabus',
+                  'Scan Syllabus and plan',
                   style: TextStyle(fontSize: 18),
                 ),
                 style: ElevatedButton.styleFrom(

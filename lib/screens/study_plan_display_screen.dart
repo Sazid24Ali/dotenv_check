@@ -262,11 +262,11 @@ class _StudyPlanDisplayScreenState extends State<StudyPlanDisplayScreen> {
 
     // Find the target insertion point: the first non-break, non-revision session before current one
     int targetGlobalIndexForSearch = globalIndexToMoveStart - 1;
-    StudySession? potentialTargetSession = null;
+    StudySession? potentialTargetSession;
 
     while (targetGlobalIndexForSearch >= 0) {
       potentialTargetSession = _sessions[targetGlobalIndexForSearch];
-      if (!potentialTargetSession!.isBreak &&
+      if (!potentialTargetSession.isBreak &&
           !potentialTargetSession.isRevision) {
         break; // Found a movable session
       }
@@ -348,7 +348,7 @@ class _StudyPlanDisplayScreenState extends State<StudyPlanDisplayScreen> {
     int targetGlobalIndexForSearch =
         globalIndexToMoveStart +
         blockToMove.length; // Start search AFTER the block being moved
-    StudySession? potentialTargetSession = null;
+    StudySession? potentialTargetSession;
     if (targetGlobalIndexForSearch < _sessions.length) {
       potentialTargetSession = _sessions[targetGlobalIndexForSearch];
     }
@@ -468,7 +468,7 @@ class _StudyPlanDisplayScreenState extends State<StudyPlanDisplayScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Added ${newTime} mins revision for ${parentTopicSession.topic?.topic ?? 'topic'}.',
+            'Added $newTime mins revision for ${parentTopicSession.topic?.topic ?? 'topic'}.',
           ),
         ),
       );
@@ -534,7 +534,7 @@ class _StudyPlanDisplayScreenState extends State<StudyPlanDisplayScreen> {
         _recalculatePlanTotals();
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Added ${newTime} mins break after session.')),
+        SnackBar(content: Text('Added $newTime mins break after session.')),
       );
     }
   }
@@ -546,7 +546,7 @@ class _StudyPlanDisplayScreenState extends State<StudyPlanDisplayScreen> {
     final newTime = await showDialog<int>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Edit ${sessionType} Time (minutes)'),
+        title: Text('Edit $sessionType Time (minutes)'),
         content: TextField(
           controller: timeController,
           keyboardType: TextInputType.number,
@@ -579,7 +579,7 @@ class _StudyPlanDisplayScreenState extends State<StudyPlanDisplayScreen> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Updated ${sessionType} time to ${newTime} mins.'),
+          content: Text('Updated $sessionType time to $newTime mins.'),
         ),
       );
     }

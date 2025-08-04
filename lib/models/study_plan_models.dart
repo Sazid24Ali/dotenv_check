@@ -12,7 +12,7 @@ class StudyPlan {
   final List<StudySession> sessions;
   final int totalRevisionTimeMinutes;
   
-  @JsonKey(defaultValue: const [])
+  @JsonKey(defaultValue: [])
   final List<Topic> uncoveredTopics;
 
   StudyPlan({

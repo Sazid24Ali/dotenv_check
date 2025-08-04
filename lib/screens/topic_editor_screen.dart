@@ -179,7 +179,7 @@ class _TopicEditorScreenState extends State<TopicEditorScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    '${currentEstimatedTime} minutes',
+                    '$currentEstimatedTime minutes',
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                   Row(
@@ -189,8 +189,9 @@ class _TopicEditorScreenState extends State<TopicEditorScreen> {
                         icon: const Icon(Icons.remove_circle),
                         onPressed: () {
                           setState(() {
-                            if (currentEstimatedTime > 0)
+                            if (currentEstimatedTime > 0) {
                               currentEstimatedTime -= 5;
+                            }
                           });
                         },
                       ),
@@ -444,7 +445,7 @@ class _TopicEditorScreenState extends State<TopicEditorScreen> {
         children: [
           ...unit.topics
               .map((topic) => _buildTopicEditor(topic, unit.topics, 0))
-              .toList(),
+              ,
           Align(
             alignment: Alignment.center,
             child: TextButton.icon(
@@ -530,7 +531,7 @@ class _TopicEditorScreenState extends State<TopicEditorScreen> {
                   (subtopic) =>
                       _buildTopicEditor(subtopic, topic.subtopics, level + 1),
                 )
-                .toList(),
+                ,
             Align(
               alignment: Alignment.center,
               child: TextButton.icon(
