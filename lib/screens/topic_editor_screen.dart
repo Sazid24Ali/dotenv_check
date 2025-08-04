@@ -85,46 +85,57 @@ class _TopicEditorScreenState extends State<TopicEditorScreen> {
       ),
     );
 
-    try {
-      var status = await Permission.storage.status;
-      if (!status.isGranted) {
-        status = await Permission.storage.request();
-      }
+    final String pdfFilePath = await PdfGenerator.generateSyllabusPdf(
+      _currentSyllabus,
+    );
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            PdfViewerScreen(pdfPath: pdfFilePath, title: widget.scanTitle),
+      ),
+    );
+    // try {
+    //   var status = await Permission.storage.status;
+    //   if (!status.isGranted) {
+    //     status = await Permission.storage.request();
+    //   }
 
-      if (status.isGranted) {
-        final String pdfFilePath = await PdfGenerator.generateSyllabusPdf(
-          _currentSyllabus,
-        );
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    //   if (status.isGranted) {
+    //     final String pdfFilePath = await PdfGenerator.generateSyllabusPdf(
+    //       _currentSyllabus,
+    //     );
+    //     ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) =>
-                PdfViewerScreen(pdfPath: pdfFilePath, title: widget.scanTitle),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Storage permission denied. Cannot save PDF. Please enable it in app settings.',
-            ),
-            duration: Duration(seconds: 5),
-          ),
-        );
-        if (status.isDenied) {
-          await openAppSettings();
-        }
-      }
-    } catch (e, stacktrace) {
-      print('Error generating PDF: $e');
-      print('Stacktrace: $stacktrace');
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to generate PDF: ${e.toString()}')),
-      );
-    }
+    //     Navigator.push(
+    //       context,
+    //       MaterialPageRoute(
+    //         builder: (context) =>
+    //             PdfViewerScreen(pdfPath: pdfFilePath, title: widget.scanTitle),
+    //       ),
+    //     );
+    //   } else {
+    //     ScaffoldMessenger.of(context).showSnackBar(
+    //       const SnackBar(
+    //         content: Text(
+    //           'Storage permission denied. Cannot save PDF. Please enable it in app settings.',
+    //         ),
+    //         duration: Duration(seconds: 5),
+    //       ),
+    //     );
+    //     if (status.isDenied) {
+    //       await openAppSettings();
+    //     }
+    //   }
+    // } catch (e, stacktrace) {
+    //   print('Error generating PDF: $e');
+    //   print('Stacktrace: $stacktrace');
+    //   ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    //   ScaffoldMessenger.of(context).showSnackBar(
+    //     SnackBar(content: Text('Failed to generate PDF: ${e.toString()}')),
+    //   );
+    // }
   }
 
   void _editName(dynamic node, String label) async {
@@ -198,17 +209,13 @@ class _TopicEditorScreenState extends State<TopicEditorScreen> {
                       SizedBox(
                         width: 80,
                         child: TextField(
-                          controller:
-                              TextEditingController(
-                                  text: currentEstimatedTime.toString(),
-                                )
-                                ..selection = TextSelection.fromPosition(
-                                  TextPosition(
-                                    offset: currentEstimatedTime
-                                        .toString()
-                                        .length,
-                                  ),
-                                ),
+                          controller: TextEditingController(
+                            text: currentEstimatedTime.toString(),
+                          )..selection = TextSelection.fromPosition(
+                              TextPosition(
+                                offset: currentEstimatedTime.toString().length,
+                              ),
+                            ),
                           keyboardType: TextInputType.number,
                           textAlign: TextAlign.center,
                           onChanged: (value) {
@@ -444,8 +451,7 @@ class _TopicEditorScreenState extends State<TopicEditorScreen> {
         subtitle: Text("Total Time: ${formatTime(unit.totalEstimatedTime)}"),
         children: [
           ...unit.topics
-              .map((topic) => _buildTopicEditor(topic, unit.topics, 0))
-              ,
+              .map((topic) => _buildTopicEditor(topic, unit.topics, 0)),
           Align(
             alignment: Alignment.center,
             child: TextButton.icon(
@@ -526,12 +532,10 @@ class _TopicEditorScreenState extends State<TopicEditorScreen> {
                 ],
               ),
             ),
-            ...topic.subtopics
-                .map(
-                  (subtopic) =>
-                      _buildTopicEditor(subtopic, topic.subtopics, level + 1),
-                )
-                ,
+            ...topic.subtopics.map(
+              (subtopic) =>
+                  _buildTopicEditor(subtopic, topic.subtopics, level + 1),
+            ),
             Align(
               alignment: Alignment.center,
               child: TextButton.icon(
