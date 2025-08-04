@@ -6,7 +6,8 @@ import 'package:timezone/data/latest_all.dart'
     as tz_data; // Aliased for initializeAll()
 import 'package:timezone/timezone.dart'
     as tz; // Aliased for TZDateTime and local
-import 'package:dotenv_check/screens/main_screen.dart'; // Import MainScreen
+import 'package:dotenv_check/screens/main_screen.dart'; // Import
+import 'package:alarm/alarm.dart';
 
 // THIS GLOBAL DECLARATION IS CRUCIAL. It must be at the top level, outside any class.
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -15,6 +16,7 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 Future<void> main() async {
   // Ensure Flutter binding is initialized before using plugins like dotenv
   WidgetsFlutterBinding.ensureInitialized();
+  await Alarm.init();
 
   // Load the .env file
   try {
@@ -31,12 +33,12 @@ Future<void> main() async {
   // Configure notification settings for Android and iOS (COMMENTED OUT AS PER YOUR REQUEST FOR NOW)
   const AndroidInitializationSettings initializationSettingsAndroid =
       AndroidInitializationSettings('@mipmap/ic_launcher');
-  const DarwinInitializationSettings initializationSettingsDarwin = 
+  const DarwinInitializationSettings initializationSettingsDarwin =
       DarwinInitializationSettings(
-        requestAlertPermission: false,
-        requestBadgePermission: false,
-        requestSoundPermission: false,
-      );
+    requestAlertPermission: false,
+    requestBadgePermission: false,
+    requestSoundPermission: false,
+  );
   final InitializationSettings initializationSettings = InitializationSettings(
     android: initializationSettingsAndroid,
     iOS: initializationSettingsDarwin,
